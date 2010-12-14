@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<!--
+ This code was created by Federico Elles which
+ can be found at http://code.google.com/p/predictionwiz/
+ 
+ Please let me know about errors and improvements via info@3x3Links.com or the link above.
+-->
+<html>
+<head>
+	<meta charset=utf-8 />
+	<title>Admin - Prediction Wizard</title>
+	<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css" />
+	<link rel="shortcut icon" href="/stylesheets/favicon.png" />
+	<link type="text/css" href="/css/smoothness/jquery-ui-1.8.6.custom.css" rel="Stylesheet" />	
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/jquery-ui-1.8.6.custom.min.js"></script>
+	<!--[if IE]>
+		<script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->		
+</head>
+<body>
+<div class="div_menu_adm">
+<a href="/">Back</a>
+| <a target="_blank" href="https://sandbox.google.com/storage/#wiz">Storage</a>
+| <a href="/adm/exit">Signout</a>
+</div>
+
+
+<h1 title="Home">
+<img src="/stylesheets/logo.png">
+Prediction Wizard Admin
+</h1>
+
+<div id="tabs">
+	<ul>
+		<li><a href="#tabs-1">Models</a></li>
+		<!--<li><a href="#tabs-2">Storage</a></li>-->
+		<li><a href="#tabs-3">Setup</a></li>
+	</ul>
+	<div id="tabs-1">
+
+<!--
+  Models
+  
+  
+-->
+
+
+<table class="tbl_results">
+{% if records %}
+<tr>
+
+<th style="width:15%">Datafile</th>
+<th style="width:20%">Caption</th>
+<th style="width:20%">Action</th>
+<th style="width:35%">Result</th>
+<th style="width:5%">Delete</th>
+<th style="width:5%">Public</th>
+</tr>
+  {% for record in records %}
+	<tr>
+	  <td>{{ record.datafile }}</td>
+	  <td>{{ record.caption }}</td>
+	  <td>
+	    <button id="btn_train_{{ record.key }}" onClick="action('{{ record.key }}','train','{{ record.datafile }}')">Train</button>
+		<span title="Since start of training." id="span_train_{{ record.key }}"></span>
+	    <button id="btn_trainstatus_{{ record.key }}" onClick="action('{{ record.key }}','trainstatus','{{ record.datafile }}')">Status</button>
+	  </td>
+	  <td id="result_{{ record.key }}"></td>	  
+	  <td>	  
+		<form action="/adm/delete" method="POST">
+          <input type="hidden" name="key" value="{{ record.key }}" />
+		  <button>x</button>
+        </form>
+	  </td>
+	  <td><input type="checkbox" {% if record.public %}checked{% endif %} disabled /></td>	  
+	</tr>
+  {% endfor %}
+{% else %}
+  <tr><td colspan="5">No data models available</td></tr>
+{% endif %}
+
+</table>
+
+<p>Result Data Type:
+<select id="datatype">
+  <option value="json">JSON</option>
+  <option value="html">HTML</option>
+</select>
+</p>
+
+<hr>
+
+<p><b>Create a new data model:</b></p>
+<form action="/adm/new" method="POST">
+  <table class="tbl_results">
+  <tr>
+    <td>Bucket/ Learning file name</td>
+	<td><input name="bucket" class="localstoragesave" id="inp_new_bucket" />/<input name="datafile" /></td>
+  </tr>
+  <tr>
+    <td>Caption*</td>
+	<td><input name="caption" /></td>
+  </tr>  
+  <tr>
+    <td>Public*</td>
+	<td><input type="checkbox" name="public" /> Share model with the world</td>
+  </tr>    
+  <tr>
+    <td>Storage Check*</td>
+	<td>
+	  <input id="inp_create_model_check1" type="checkbox"/><label for="inp_create_model_check1">
+	    I created the bucket in my <a target="_blank" href="https://sandbox.google.com/storage/">Google Storage</a>
+	  </label>
+	  <br/>
+	  <input id="inp_create_model_check2" type="checkbox"/><label for="inp_create_model_check2">
+	    I uploaded the learning file into my <a target="_blank" href="https://sandbox.google.com/storage/">Google Storage</a>
+	  </label>
+	
+	</td>
+  </tr>   
+  <tr>
+    <td></td>
+	<td><button>Create</button></td>
+  </tr>  
+  </table>  
+  <p><b>Hint:</b> Hello World training file: <a href="http://code.google.com/apis/predict/docs/language_id.txt">language_id.txt</a></p>
+</form>
+
+<!--
+  End
+-->
+	
+	</div>
+	
+	
+<!--
+<div id="tabs-3">
+
+
+<iframe height="60%" width="100%" src="https://sandbox.google.com/storage/#wiz" scrolling="yes" frameborder="0"> 
+</iframe> 
+	</div>
+
+  End
+ -->	
+	
+
+	<div id="tabs-3">
+	
+<!--
+  Setup
+-->
+
+<p>An auth token based on your Google Account credentials is needed to use this webapp. 
+  <a target="_blank" href="http://code.google.com/apis/predict/docs/developer-guide.html">Tell me more.</a>
+</p>
+  <table>
+  <tr>
+    <td style="width:200px;">Auth Token</td>
+	<td>
+	  <textarea id="ta_adm_key"></textarea>
+	</td>
+  </tr>
+  <tr>
+    <td>Disclaimer</td>
+	<td>
+	  <input type="checkbox" id="inp_adm_key_confirm1" /> 
+	  <label for="inp_adm_key_confirm1">
+	    I understand, that my Auth Token must be saved together with my salted e-mail address hash in 
+		the data storage to be able to use this webapp. No plain text e-mail address is stored.
+	  </label>
+	</td>
+  </tr>          
+  <tr>
+    <td></td>
+	<td>
+	  <button id="btn_adm_key_save">Save</button>
+	  <span id="span_adm_key_save"></span>
+	</td>
+  </tr>  
+
+  <tr>
+    <td><b>Generate Auth Token</b></td>
+	<td>
+	</td>
+  </tr>   
+  <tr>
+    <td>Prediction API User</td>
+	<td>
+	  <input id="span_adm_key_user" />
+	</td>
+  </tr>    
+  <tr>
+    <td>Password</td>
+	<td>
+	  <input type="password" id="span_adm_key_pass" />
+	</td>
+  </tr>     
+  <tr>
+    <td>Disclaimer</td>
+	<td>
+	  <input type="checkbox" id="inp_adm_key_confirm2" /> <label for="inp_adm_key_confirm2">I trust Federico Elles that my password and user are not stored anywhere.</label>
+	</td>
+  </tr>
+  <tr>
+    <td></td>
+	<td>
+	  <button id="btn_adm_key_generate">Generate</button>
+	  <span id="span_adm_key_generate"></span>
+	</td>
+  </tr>
+  <tr>
+    <td><b>Hint</b></td>
+	<td>
+	  If you do not trust this webapp (I would also not if it wasn't written be me), either
+	  create a new Google Account for the only purpose to
+	  use it with the Prediction API and this nice tool or <a href="http://code.google.com/p/predictionwiz/downloads/list">download the source code</a> and deploy it on your App Engine instance.
+	</td>
+  </tr>        
+  </table>  
+
+<!--
+  End
+-->	
+	
+	</div>
+</div>
+
+</body>
+
+
+<script type="text/javascript">
+//
+// Enable Tabs
+//
+var $tabs = $( "#tabs" ).tabs();
+
+
+// ----- //
+// Setup //
+// ----- //
+
+//
+// Save Key
+//
+$('#btn_adm_key_save').click(function() {
+  agreed = $('#inp_adm_key_confirm1').attr('checked');
+  if (agreed){  
+    $('#span_adm_key_save').html("Saving...");
+    $.ajax({url: '/adm/key',
+      type: 'POST',
+      data: {key: $('#ta_adm_key').val()},
+	  success: function(data) {
+	    $('#span_adm_key_save').html(data);
+      }
+    });
+  } else {
+    $('#span_adm_key_save').html("Please accept the disclaimer.");
+  }  
+});
+
+$('#ta_adm_key').attr('disabled','disabled');
+$('#ta_adm_key').load('/adm/key', function() {
+  $('#span_adm_key_save').html("Loaded");
+  $('#ta_adm_key').attr('disabled','');
+  //if no key, focus setup
+  if ($('#ta_adm_key').val() === ''){
+    $tabs.tabs('select',1);
+  }
+  
+});
+
+$('#ta_adm_key').change(function() {
+  $('#span_adm_key_save').html("Unsaved");
+});
+
+//
+// Generate Key
+//
+$('#btn_adm_key_generate').click(function() {
+  agreed = $('#inp_adm_key_confirm2').attr('checked');
+  if (agreed){
+    $('#span_adm_key_generate').html("Creating...");
+    $.ajax({url: '/adm/api/gettoken',
+  	  type: 'POST',
+      data: {user: $('#span_adm_key_user').val(), pass: $('#span_adm_key_pass').val()},
+	  success: function(data) {
+  	    $('#ta_adm_key').html(data);
+	    if (data == 'HTTPError = 403') {
+          response = "Authentification Error. Password or User wrong.";
+	    } else {
+  	      response = "Token copied.";	   
+		  $('#span_adm_key_user').val('');
+		  $('#span_adm_key_pass').val('');
+		  $('#span_adm_key_save').html("Unsaved");
+	    }
+	    $('#span_adm_key_generate').html(response);
+      }
+    });
+  } else {
+    $('#span_adm_key_generate').html("Please accept the disclaimer.");
+  }
+});
+
+
+// ------ //
+// Models //
+// ------ //
+
+//
+// Training Timer
+//
+// based upon http://www.mcfedries.com/javascript/timer.asp
+var secs;
+var timerID = null;
+var timerRunning = false;
+var delay = 1000;
+var modelkey = '';
+var maxdur = 600;
+
+// via http://www.electrictoolbox.com/pad-number-zeroes-javascript-improved/
+function pad(number, length) { 
+    var str = '' + number;
+    while (str.length < length) {
+        str = '0' + str;
+    }
+    return str;
+}
+
+function InitializeTimer(key)
+{
+    secs = 0; //ten minutes
+    StopTheClock(key);
+    StartTheTimer(key);
+}
+
+function StopTheClock(key)
+{
+    if(timerRunning){
+        clearTimeout(timerID);
+		$('#span_train_'+modelkey).html('');
+	}
+	modelkey = key;
+    timerRunning = false;
+}
+
+function StartTheTimer(key)
+{
+    if (secs>600)
+    {
+        StopTheClock(key);
+        $('#span_train_'+key).html('Error');
+    }
+    else
+    {
+        $('#span_train_'+key).html(pad(Math.round(secs/60),2)+':'+pad(secs%60,2));
+        secs = secs + 1;
+        timerRunning = true;
+        timerID = self.setTimeout("StartTheTimer('"+key+"')", delay);
+    }
+}
+
+//
+// Train or Status click
+//
+function action(key, urlsuffix, datafile){
+  $('#result_'+key).html("Working...");
+  $('#btn_'+urlsuffix+'_'+key).attr('disabled','disabled');
+  $.ajax({url: '/adm/api/'+urlsuffix,
+    dataType: $('#datatype').val(),
+	type: 'POST',
+    data: {datafile: datafile},
+	success: function(data) {
+      if ($('#datatype').val() == 'json'){
+		if (urlsuffix == 'trainstatus'){ html = data.data.modelinfo;}
+	    if (urlsuffix == 'train'){ html = "Training has started for '" + data.data.data + '. Please check Status.';}
+	  } else {
+	    html = data;
+	  }
+	  $('#result_'+key).html(html); 
+	  $('#btn_'+urlsuffix+'_'+key).attr('disabled','');
+	  if (urlsuffix == 'train'){
+	    $('#span_train_'+key).html('Start');
+		InitializeTimer(key);
+	  }
+    },
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+	  $('#btn_'+urlsuffix+'_'+key).attr('disabled','');
+	  try {
+	    if (errorThrown.indexOf('HTTPError = 401') > -1){
+	      result = 'Authentification failed';
+	    } else {
+          result = textStatus + errorThrown;
+	    } 
+		$('#result_'+key).html(result);
+	  } catch (e) {
+	    $('#result_'+key).html(errorThrown);
+	  }
+    }	
+  });
+}
+
+//
+// Initial Training Status Check
+//
+{% for record in records %}
+ action('{{ record.key }}','trainstatus','{{ record.datafile }}');
+{% endfor %}
+
+
+//
+// save values for input files in localstorage
+//
+$(function() {
+  $('.localstoragesave').each(function(index) {
+  	sid = $(this).attr('id');
+  	if (sid){
+  	  val = localStorage.getItem("po_"+sid);
+	  type = $(this).attr('type');
+  	  if (val){
+	    if (type == 'checkbox'){
+		  if (val == 'true'){
+		    $(this).attr('checked', true);
+		  } else {
+		    $(this).attr('checked', false);
+		  }
+		} else {
+  	      $(this).val(val);
+		}
+  	  }
+  	  //set onchange event for all
+ 	  $(this).change(function() {
+  	    sid = $(this).attr('id');
+		type = $(this).attr('type');
+		val = $(this).val();
+	    if (type == 'checkbox'){  
+          val = $(this).attr('checked');
+		} else {
+		  val = $(this).val();
+		}
+        localStorage.setItem("po_"+sid,val);		
+      });
+    }
+  });
+});
+
+//
+// H1 Link
+//
+$('h1').click(function(){
+  location.href='/';
+});
+ 
+
+</script>
+
+</html>

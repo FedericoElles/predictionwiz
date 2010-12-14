@@ -1,0 +1,26 @@
+application: predictionwiz
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /stylesheets
+  static_dir: stylesheets
+  
+- url: /js
+  static_dir: js
+  
+- url: /css
+  static_dir: css
+
+- url: /adm/.*
+  script: adm.py
+  secure: always
+  
+- url: /debug/.*
+  script: adm.py
+  login: admin  
+    
+- url: /.*
+  script: main.py
+  secure: always  
