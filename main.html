@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<!--
+ This code was created by Federico Elles which
+ can be found at http://code.google.com/p/predictionwiz/
+ 
+ Please let me know about errors and improvements via info@3x3Links.com or the link above.
+-->
+<html>
+<head>
+	<meta charset=utf-8 />
+	<title>Prediction Wizard</title>
+	<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css" />
+	<link rel="shortcut icon" href="/stylesheets/favicon.png" />
+	<link type="text/css" href="/css/smoothness/jquery-ui-1.8.6.custom.css" rel="Stylesheet" />	
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="/js/jquery-ui-1.8.6.custom.min.js"></script>
+	<!--[if IE]>
+		<script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->		
+</head>
+<body>
+<div class="div_menu_adm">
+<a href="/adm/">Admin</a>
+{% if user %}
+ | <a href="/adm/exit">Sign out</a>
+{% else %}
+ | <a href="/signin">Sign in</a>
+{% endif %}
+
+</div>
+
+<h1 title="Home">
+<img src="/stylesheets/logo.png">
+Prediction Wizard
+</h1>
+<div id="tabs">
+	<ul>
+		<li><a href="#tabs-3">Generator</a></li>
+		<li><a href="#tabs-2">Validator</a></li>
+		<li><a href="#tabs-1">Simulator</a></li>
+		<li><a href="#tabs-4">About</a></li>		
+		
+	</ul>
+	<div id="tabs-1">
+
+<!--
+  Simulator
+-->
+<form id="form_gen">
+<table>
+<p>Test a prediction model.</p>
+<tr>
+<td style="width:120px;">Model:</td>
+<td>
+  <select name="model" id="inp_model">
+  {% for record in records %}
+	  <option value="{{record.key }}">{{ record.caption }}</option>
+  {% endfor %}
+  </select>
+</td>
+</tr><tr> 
+<td>Test data:</td>
+<td>
+  <input type="text" name="content" id="inp_content" value="Enter your test data string here" />
+</td>  
+</tr><tr> 
+<td>Result data type:</td>
+<td>
+  <select id="datatype">
+    <option value="json">JSON</option>
+	<option value="html">HTML</option>
+  </select>
+</td> 
+</tr><tr> 
+<td></td>
+<td><input type="submit" value="Predict"/></td>
+</tr><tr> 
+<td>Result:</td>
+<td>
+  <div id="div_result">No predictions done yet</div>
+</td>
+</tr>
+</table>
+</form>
+
+<div id="div_result_log">
+<br />
+<hr>
+<h3>Result Log</h3>
+<table class="tbl_results">
+<tr>
+  <th>Test data</th>
+  <th style="width:200px;">Result</th>
+</tr>
+<tbody id="tb_result_log">
+</tbody>
+</table>
+</div>
+{% if user %}
+<hr>
+<p> GET API: /api/predict?model=<span id="span_sim_model_key"></span>&content=[query] - returns result as single string</p>
+{% endif %}
+<!--
+  End
+-->
+	
+	</div>
+	<div id="tabs-2">
+	
+<!--
+  Validator
+-->
+
+<p>Validate a learning file against a prediction model</p>
+<table>
+<tr>
+<td style="width:120px;">Model:</td>
+<td>
+  <select name="model" id="inp_model_val">
+  {% for record in records %}
+	  <option value="{{record.key }}">{{ record.caption }}</option>
+  {% endfor %}
+  </select>
+</td>
+</tr>
+</table>	
+
+	<b>Input</b><br />
+	<textarea id="ta_validator"></textarea>
+	<br /><button id="btn_validator">Validate</button>
+		<span id="span_val_results_count"></span>
+		<span id="span_val_predicted_count"></span>
+		
+	<div id="div_val_more_options">
+		<hr>
+		<b>Options</b><br/>
+
+		<button id="btn_show_failed">Show errors</button>
+		<button id="btn_show_all">Show all</button>
+		| 
+		<button id="btn_export">Export positive</button>
+
+		<input id="inp_val_file_use" type="checkbox"><label for="inp_val_file_use"> Provide file download:</label>
+		<input id="inp_val_file" value="text.txt">
+	</div>
+
+	
+	<span id="span_export_count"></span>
+	
+	<div id="div_export">
+		<b>Export</b><br />
+		<textarea id="ta_validator_export"></textarea>
+	</div>
+	
+	<!-- show only after successful upload -->
+	<div id="div_validator_file">
+		<hr>
+		<a target="_blank" href="" id="a_validator_file" draggable="true" data-downloadurl=""></a>		
+		<p>
+		  <b><span id="span_validator_file"></span></b><br/>
+		  Right-click to save file or drag to desktop (when using Chrome).<br/>
+		  <br/>
+		</p>
+		{% if user %}
+		<hr>
+		<b>Create</b> new data model for file:<br/>
+		<form action="/adm/new" method="POST">
+			<input type="hidden" name="datafile" id="inp_validator_file" />
+			Bucket:
+			<input name="bucket" class="localstoragesave" id="inp_new_bucket" />
+  			Caption*:
+			<input name="caption" />
+			<label for="inp_new_public">Public*</label> <input type="checkbox" id="inp_new_public" name="public" />
+			<button>Create</button>
+		</form>
+		{% endif %}
+	</div>	
+	
+	<div id="div_val_results">
+		<hr>
+		<table class="tbl_results">
+		<tr>
+		 <th>Test data</th>
+		 <th style="width:100px;">Result</th>
+		 <th style="width:100px;">Predicted</th>
+		 <th style="width:10px;"></th>
+		</tr>
+		<tbody id="tb_val_results">
+		</tbody>
+		</table>
+	</div>
+	
+
+
+<!--
+  End
+-->	
+	
+	</div>
+	<div id="tabs-3">
+	
+<!--
+  Generator
+-->
+
+	<p>Generate a learning file with data from a spread sheet</p>	
+	
+	<textarea id="ta_generator_in"></textarea>
+	</span><b>Options</b></a><br />
+	
+	
+<table>
+<tr>
+<td style="width:180px;"><input id="inp_gen_whitelist_use" type="checkbox"><label for="inp_gen_whitelist_use"> Whitelist characters:</label></td>
+<td>
+  <input id="inp_gen_whitelist" value="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _0123456789">
+</td>
+</tr>
+<tr>
+<td><input id="inp_gen_min_words_use" type="checkbox"><label for="inp_gen_min_words_use"> Minimum words:</label></td>
+<td>
+  <input id="inp_gen_mim_words" value="3">
+</td>
+</tr>
+<tr>
+<td><input id="inp_gen_min_letters_use" type="checkbox"><label for="inp_gen_min_letters_use"> Minimum letters:</label></td>
+<td>
+  <input id="inp_gen_min_letters" value="20">
+</td>
+</tr>
+
+<tr> 
+<td><input id="inp_gen_whitewords_use" type="checkbox"><label for="inp_gen_whitewords_use"> Whitelist words:</label></td> 
+<td> 
+  Minimum word occurances: <input id="inp_gen_whitewords_occur_min" value="2"> 
+  <button id="btn_gen_whitewords_analyse" >Analyse input</button> 
+  <br/> 
+  <textarea id="ta_whitewords_out"></textarea> 
+</td> 
+</tr> 
+
+<tr>
+<td><input type="checkbox" id="inp_gen_lowercase"><label for="inp_gen_lowercase"> Convert to lower case</label></td>
+<td>
+  
+</td>
+</tr>
+<tr>
+<td><input id="inp_gen_file_use" type="checkbox"><label for="inp_gen_file_use"> Provide file download:</label></td>
+<td>
+  <input id="inp_gen_file" value="text.txt">
+</td>
+</tr>
+
+</table>	
+
+  
+	
+	<button id="btn_generator">Generate</button>
+	<span id="span_gen_out_count"></span>
+	<br />
+	<div id="div_generator_out">
+	  <b>Output</b><br />
+	  <textarea id="ta_generator_out"></textarea>	
+	</div>
+	
+	<!-- show only after successful upload -->
+	<div id="div_generator_file">
+		<a target="_blank" href="" id="a_generator_file" draggable="true" data-downloadurl=""></a>
+		<p>
+		  <b><span id="span_generator_file"></span></b><br/>
+		  Right-click to save file or drag to desktop (when using Chrome).<br/>
+		  <br/>
+		</p>
+		{% if user %}
+		<hr>
+		<b>Create</b> new data model for file:<br/>
+		<form action="/adm/new" method="POST">
+			<input type="hidden" name="datafile" id="inp_generator_file" />
+			Bucket:
+			<input name="bucket" id="inp_new_bucket" />
+  			Caption*:
+			<input name="caption" />
+			<label for="inp_new_public">Public*</label> <input type="checkbox" id="inp_new_public" name="public" />
+			<button>Create</button>
+		</form>
+		{% endif %}
+	</div>
+
+<!--
+  End
+-->	
+	
+	</div>
+	<div id="tabs-4">
+	
+<!--
+  About
+-->
+	<p>Prediction Wizard - A GUI for the <a href="http://code.google.com/apis/predict/">Google Prediction API</a></p>	
+
+<table>
+<tr>
+  <td style="width:120px;">Directed by</td>
+  <td>Federico Elles (<a href="http://www.twitter.com/illcom">@illcom</a>)</td>
+</tr><tr> 
+  <td>Based upon</td>
+  <td>
+    <a href="http://code.google.com/p/google-prediction-api-samples/source/browse/#svn/trunk/blog_moderation">Sample Code</a> by
+	Brian McKenna, Robert Kaplow
+  </td>
+</tr><tr> 
+  <td>Inspired by</td>
+  <td>Patrick Chanezon (<a href="http://www.twitter.com/chanezon">@chanezon</a>) at the Google Developer Day 2010 in Munich</td>
+</tr><tr> 
+  <td>GUI by</td>
+  <td><a href="http://jqueryui.com/">jQuery UI</a></td>
+</tr><tr> 
+  <td>Hosted by</td>
+  <td>The <a href="http://code.google.com/appengine/">Google App Engine</a></td>
+</tr><tr> 
+  <td>Graphics by<br/></td>
+  <td>
+    Icon by <a href="http://de.wikipedia.org/wiki/The_Legend_of_Zelda">Legend of Zelda</a> suggested by <a href="http://spritestrips.blogspot.com/">Ian DeMocca</a><br/>
+    Text file icon by <a href="http://www.microsoft.com/windows/windows-7/">Windows 7</a> Default
+  </td>
+</tr><tr> 
+  <td>Source code at</td>
+  <td>
+    <a href="http://code.google.com/p/predictionwiz/downloads/list">http://code.google.com/p/predictionwiz</a>
+  </td>
+</tr>
+
+
+
+</table>
+
+
+<!--
+  End
+-->	
+	
+	</div>
+</div>
+
+<p class="p_grey">
+   It's a webapp, not a website. Created by Federico Elles, 2010. <a href="http://code.google.com/p/predictionwiz/downloads/list">Download source code</a>
+</p>
+
+</body>
+
+
+<script type="text/javascript">
+//
+// Enable Tabs
+//
+$(function() {
+	$( "#tabs" ).tabs();
+});
+
+
+$('#div_result_log').hide();
+$('#div_export').hide();
+$('#div_generator_file').hide();
+$('#div_validator_file').hide();
+$('#div_generator_out').hide();
+$('#div_val_more_options').hide();
+$('#div_val_results').hide();
+
+
+//
+// save values for input files in localstorage
+//
+$(function() {
+  $('select,input').each(function(index) {
+  	sid = $(this).attr('id');
+  	if (sid){
+  	  val = localStorage.getItem("po_"+sid);
+	  type = $(this).attr('type');
+  	  if (val){
+	    if (type == 'checkbox'){
+		  if (val == 'true'){
+		    $(this).attr('checked', true);
+		  } else {
+		    $(this).attr('checked', false);
+		  }
+		} else {
+  	      $(this).val(val);
+		}
+  	  }
+  	  //set onchange event for all
+ 	  $(this).change(function() {
+  	    sid = $(this).attr('id');
+		type = $(this).attr('type');
+		val = $(this).val();
+	    if (type == 'checkbox'){  
+          val = $(this).attr('checked');
+		} else {
+		  val = $(this).val();
+		}
+        localStorage.setItem("po_"+sid,val);		
+      });
+    }
+  });
+});
+
+
+
+//
+// whitelist words generate click
+//
+$('#btn_gen_whitewords_analyse').click(function() {
+	iMinOccur = $('#inp_gen_whitewords_occur_min').val();
+	try { iMinOccur = parseInt('0'+iMinOccur);} catch (e){ iMinOccur = 1;$('#inp_gen_whitewords_occur_min').val('1');}
+	if (iMinOccur < 0){iMinOccur = 0;}	
+	whitelist = $('#inp_gen_whitelist').val();
+	whitelist_use = $('#inp_gen_whitelist_use').attr('checked');
+	lowercase = $('#inp_gen_lowercase').attr('checked'); //returns true or false
+	sStr = $('#ta_generator_in').val();
+	sStr = sStr.replace(/\t/g,' ')
+	//lowercase
+	if (lowercase){sStr = sStr.toLowerCase();}	
+    //filter 
+    if (whitelist !== '' && whitelist_use){
+	  sStrOrig = sStr;
+	  sStr = '';
+      for(k=0;k<sStrOrig.length;k++){
+		cChar = sStrOrig.charAt(k);
+		if (whitelist.indexOf(cChar) >-1){
+		  sStr += cChar;
+	    }
+  	  }
+    }	
+	
+	while (sStr.indexOf('  ') > -1){
+	  sStr = sStr.replace(/  /g,' ');
+	}	
+	var asWords = sStr.split(" ");
+	output = '';
+	wordmap = new Array();
+	for (i=0;i<asWords.length;i++){
+		word = asWords[i];
+		if (word !== ''){
+		  if (wordmap[word] != undefined){
+		  	wordmap[word] += 1;
+	  	} else {
+  			wordmap[word] = 1;
+		  }
+	  }
+	}
+  for (var i in wordmap) {
+  	if (wordmap[i] >= iMinOccur){
+	    //output += 'key is: ' + i + ', value is: ' + wordmap[i] + '\n';
+	    output += i + '\n';
+	  }
+  }
+	
+	$('#ta_whitewords_out').val(output);
+	
+});
+ 
+
+//
+// generator click
+//
+$('#btn_generator').click(function() {
+  $('#div_generator_file').hide();
+  //read options
+  whitelist = $('#inp_gen_whitelist').val();
+  min_words = $('#inp_gen_mim_words').val();
+  try { min_words = parseInt('0'+min_words)-1;} catch (e){ min_words = 1;$('#inp_gen_mim_words').val('1');}
+  if (min_words < 0){min_words = 0;}
+  min_letters = $('#inp_gen_min_letters').val();
+  try { min_letters = parseInt('0'+min_letters);} catch (e){ min_letters = 1; $('#inp_gen_min_letters').val('1')}
+  lowercase = $('#inp_gen_lowercase').attr('checked'); //returns true or false
+  whitelist_use = $('#inp_gen_whitelist_use').attr('checked');
+  min_words_use = $('#inp_gen_min_words_use').attr('checked');
+  min_letters_use = $('#inp_gen_min_letters_use').attr('checked');
+  whitewords_use = $('#inp_gen_whitewords_use').attr('checked');
+  file_use = $('#inp_gen_file_use').attr('checked');
+	if (whitewords_use){  
+    // gen whitelist
+		wordmap = new Array();
+		asWords = $('#ta_whitewords_out').val().split('\n');
+		for (i=0;i<asWords.length;i++){
+  		wordmap[asWords[i]] = 1;
+		}
+	}
+  
+  //process
+  input = $('#ta_generator_in').val();
+  $('#ta_generator_out').val('');
+  html = '';
+  count=0;
+  //processing
+  asRow = input.split("\n");
+  for (i=0;i<asRow.length;i++){
+    if (asRow[i] !== ""){
+      asCol = asRow[i].split("\t");
+      if (asCol.length > 1){
+	  if (jQuery.trim(asCol[0]) !== '' && (jQuery.trim(asCol[1]) !== '' || asCol.length > 2)){
+	    bAdd = true;
+		htmlrow = '';
+	    for (j=0;j<asCol.length;j++){
+		  sStr = jQuery.trim(asCol[j]);
+		  //kill double space
+		  while (sStr.indexOf('  ') > -1){
+		    sStr = sStr.replace(/  /g,' ');
+		  }
+		  
+		  //lowercase
+		  if (lowercase){sStr = sStr.toLowerCase();}
+		  //filter 
+          if (whitelist !== '' && whitelist_use){
+		    sStrOrig = sStr;
+			sStr = '';
+		    for(k=0;k<sStrOrig.length;k++){
+			  cChar = sStrOrig.charAt(k);
+			  if (whitelist.indexOf(cChar) >-1){
+			    sStr += cChar;
+			  }
+			}
+		  }
+		  
+		  // whitelist words
+		  //
+		  if ($('#ta_whitewords_out').val() !== '' && whitewords_use && j > 0){
+		  	asWords = sStr.split(' ');
+		  	for (k=0;k<asWords.length;k++){
+		  		word = asWords[k];
+		  		if (wordmap[word] == undefined){
+		  			sStr = sStr.replace(word,'');
+		  		}
+		  	}
+		  	
+		    //kill double space
+		    while (sStr.indexOf('  ') > -1){
+				sStr = sStr.replace(/  /g,' ');
+			}		  	
+		  }
+		  
+		  //minimum characters - not for result column
+		  if (min_letters > 0 && j > 0 && min_words_use){
+		    if (sStr.length < min_letters){ bAdd = false;}
+		  }
+		  //minimum words
+		  if (min_words > 0 && j > 0 && min_words_use){
+		    iSpaces =  sStr.length - sStr.replace(/ /gi,'').length;
+			if (iSpaces < min_words){ bAdd = false;}
+		  }
+		  
+		  //finalize
+		  sStr= '"'+sStr+'"';
+		  if (j != asCol.length-1){ sStr += ', '; } // add comma
+  	      htmlrow += sStr;
+		}
+		if (bAdd){
+		  html += htmlrow;
+		  if (i != asRow.length-1){ html += '\n'; } // add comma
+		  count++;
+		}
+	  }
+	  }
+    }
+  }
+
+  //output
+  $('#div_generator_out').show();  
+  $('#ta_generator_out').val(html);
+  $('#span_gen_out_count').html(count + ' records generated');
+  if (file_use && count > 0){
+	/*$.ajax({url: "/text",
+  	  data: {text: html}, 
+	  type: 'POST',
+      success: function(data){
+        filename = $('#inp_gen_file').val();
+	    dlpath = data;
+	    dlurl = 'text/plain; charset=UTF-8:'+filename+':'+dlpath;
+	    $('#a_generator_file').attr('data-downloadurl',dlurl);
+		$('#a_generator_file').attr('href',data);
+	    $('#inp_generator_file').val(filename);
+	    $('#span_generator_file').html(filename);
+	    $('#div_generator_file').show();
+	    
+	  },
+	  error: function(xhr, settings, exception) {
+	    help_error(xhr, settings, exception);
+      }
+	});*/
+	provideDownload('#inp_gen_file','generator', html);
+  }
+  
+});
+
+function provideDownload(input_field, context_name, filecontent ){
+  $.ajax({url: "/text",
+  	  data: {text: filecontent}, 
+	  type: 'POST',
+      success: function(data){
+        filename = $(input_field).val();
+	    dlpath = data;
+	    dlurl = 'text/plain; charset=UTF-8:'+filename+':'+dlpath;
+	    $('#a_'+context_name+'_file').attr('data-downloadurl',dlurl);
+		$('#a_'+context_name+'_file').attr('href',data);
+	    $('#inp_'+context_name+'_file').val(filename);
+	    $('#span_'+context_name+'_file').html(filename);
+	    $('#div_'+context_name+'_file').show();
+	    
+	  },
+	  error: function(xhr, settings, exception) {
+	    help_error(xhr, settings, exception);
+      }
+  });
+}
+
+
+
+
+//
+// generator download result file
+// via http://www.thecssninja.com/javascript/gmail-dragout
+//
+var file2 = document.getElementById("a_generator_file");
+
+file2.addEventListener("dragstart",function(evt){
+    evt.dataTransfer.setData("DownloadURL",file2.getAttribute("data-downloadurl"));
+},false);
+
+
+// --------- //
+// VALIDATOR //
+// --------- //
+
+//
+// validator download result file
+//
+var file = document.getElementById("a_validator_file");
+
+file.addEventListener("dragstart",function(evt){
+    evt.dataTransfer.setData("DownloadURL",file.getAttribute("data-downloadurl"));
+},false);
+
+
+//
+//needed for sorting multi ouput result
+//
+function outputSort(a,b){
+  return b.score - a.score;
+}
+
+//
+// Validator invoke
+//
+$('#a_validator').click(function() {
+  $('#div_validator').show();  
+  $('#a_validator').hide();
+});
+
+//
+// show failed rows
+//
+$('#btn_show_failed').click(function() {
+  $('.val_train_row').each(function(index) {
+	$(this).show();
+    if (!$(this).hasClass('predict_failed')){
+		$(this).hide();
+	} 
+  });
+});
+
+//
+// show all rows
+//
+$('#btn_show_all').click(function() {
+  $('.val_train_row').each(function(index) {
+	$(this).show();
+  });
+});
+
+
+//
+// export successful rows
+//
+$('#btn_export').click(function() {
+  $('#btn_export').attr('disabled','disabled');
+  html = '';
+  j=0;
+  $('.val_train_row').each(function(index) {
+	$(this).show();
+    if ($(this).hasClass('predict_failed')){
+		$(this).hide();
+	} else {
+		rowid = $(this).attr('rowid')
+		html += '"' + $('#result'+rowid).html() + '", "' + 
+		        jQuery.trim($('#testdata'+rowid).html()) + '"' + 
+				String.fromCharCode(10);
+		j++;
+	}
+  });
+  $('#div_export').show();
+  $('#ta_validator_export').val(html);
+  $('#span_export_count').html(j + ' records exported');
+  $('#btn_export').attr('disabled','');
+  
+  file_use = $('#inp_val_file_use').attr('checked');
+  if (j>0 && file_use){
+	$('#div_validator_file').hide();
+    provideDownload('#inp_val_file','validator',html)
+  }
+});
+
+
+
+//
+// reload one record
+//
+function reloadRecord(i){
+  $('#td_result'+i).removeClass('span_wrong');
+  $('#td_result'+i).removeClass('span_correct');
+  predictRecord($('#inp_model').val(), $('#result'+i).html(),$('#testdata'+i).html(),i);
+}
+
+//
+// validator one record
+//
+function predictRecord(model, result, testdata, i){
+  $('#td_result'+i).html("Working...");
+  $.ajax({url: '/api/predict',
+	type: 'POST',
+	data: {model:model,content:testdata,addreturn:'||'+i+'||'+result},
+	success: function(data) {
+	  asReturn = data.split('||');
+	  if (asReturn.length == 3){
+		
+		sPredicted = asReturn[0];
+		sID = asReturn[1];
+		sResult = asReturn[2];
+	  
+		res_style = 'span_wrong';
+		$('#row'+sID).removeClass('predict_failed');
+		if (sPredicted == sResult){
+			res_style = 'span_correct';
+		} else {
+		  $('#row'+sID).addClass('predict_failed');
+		}
+		$('#td_result'+sID).html(sPredicted);
+		$('#td_result'+sID).addClass(res_style);
+		//feed counter
+		gpredictcounter++;
+		$('#span_val_predicted_count').html('- '+gpredictcounter+ ' records predicted');
+		
+	  } else {
+		$('#td_result'+sID).html(asReturn);
+	  }			  
+	},
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+	  $('#td_result'+sID).html(textStatus);
+	}	
+  });
+}
+
+
+//
+// validator button click
+//
+var gpredictcounter = 0;
+$('#btn_validator').click(function() {
+    $('#tb_val_results').empty();
+	$('#btn_validator').attr('disabled','disabled');
+	
+	
+	sImport = $('#ta_validator').val();
+    asRow = sImport.split("\n");
+	j=0;
+	gpredictcounter=0;
+	model = $('#inp_model_val').val();
+    for (i=0;i<asRow.length;i++){
+		
+		asRecord = asRow[i].split('",');
+		if (asRecord.length > 1){
+		  sResult = asRecord[0].replace(/"/g,"");
+		  sTestData = asRecord[1].replace(/"/g,"");
+		  $('#tb_val_results').append('<tr rowid="'+i+'" class="val_train_row" id="row'+i+'">'+
+			'<td id="testdata'+i+'">'+sTestData+'</td>'+
+			'<td id="result'+i+'">'+sResult+'</td>'+
+			'<td id="td_result'+i+'"></td>'+
+			'<td><button title="Repredict record" onClick="reloadRecord('+i+');">R</button></td>'+
+			'</tr>');
+		  j++;
+		  //submit request
+		  predictRecord(model, sResult, sTestData, i);
+		  //end submit request
+		}
+	}
+    $('#span_val_results_count').html(j + ' records loaded ');
+	$('#div_val_results').show();
+	$('#div_val_more_options').show();
+	//$('#c').show();
+	$('#btn_validator').attr('disabled','');
+});
+
+//
+// validator drop file handle
+//
+
+var holder = document.getElementById('ta_validator');
+holder.ondragover = function () { this.className = 'ta_file_hover'; return false; };
+holder.ondragend = function () { this.className = ''; return false; };
+holder.ondragleave = function () { this.className = ''; return false; };
+holder.ondrop = function (e) {
+  this.className = '';
+  e.preventDefault();
+
+  var file = e.dataTransfer.files[0],
+      reader = new FileReader();
+  reader.onload = function (event) {
+   $('#ta_validator').val(event.target.result); 
+  };
+  reader.readAsText(file);
+
+  return false;
+};
+
+
+// --------- //
+// Simulator //
+// --------- //
+
+$('#inp_model').change(function(){
+  $('#span_sim_model_key').html($(this).val());
+});
+
+//
+// Predict button handler
+//
+$('#form_gen').submit(function() {
+  $('#div_result').html("Working...");
+  $.ajax({url: '/api/predict',
+    dataType: $('#datatype').val(),
+	type: 'POST',
+    data: $('form').serialize(),
+	success: function(data) {
+	  if ($('#datatype').val() == 'json'){
+	    html = '<b>';
+		if (data.data.outputLabel) {html+=data.data.outputLabel;}
+		if (data.data.outputValue) {html+=data.data.outputValue;}
+		html +='</b>';
+		j=0;
+		
+		try {
+			if (data.data.outputMulti){
+				aSort = data.data.outputMulti.sort(outputSort);
+		
+				//show only second and third best reults
+				for (i=0;i<aSort.length;i++){
+				if  (j < 3 && j > 0){
+					html += ' <span class="span_pos'+j+'">['+aSort[i].label+']</span>';
+				}
+				j++;
+			}
+		  }
+		} catch (e){
+		  html = data;
+		}
+
+	  } else {
+	    html = data;
+	  }
+  
+      $('#div_result').html(html);
+  
+      //write log
+	  $('#div_result_log').show();
+      $('#tb_result_log').prepend('<tr"><td>' + $('#inp_content').val() + '</td><td>' +  $('#div_result').html() + '</td></tr>');
+
+	  // update API
+	  $('#span_sim_model_key').html($('#inp_model').val());
+	  
+      
+    },
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+      $('#div_result').html(textStatus);
+    }	
+  });
+  return false;
+});
+
+//
+// Text area hints
+//
+
+ function ta_hint(id, text){
+   $('#'+id).val(text);
+   $('#'+id).focus(function(e) {
+     if($('#'+id).val() == text) {
+      $('#'+id).val("");
+     }
+   });
+ 
+    $('#'+id).blur(function(e) {
+     if($('#'+id).val() == "") {
+       $('#'+id).val(text);
+     }
+   });
+ }
+
+ ta_hint('ta_generator_in', 'Select cells to use, copy and paste here.');
+ ta_hint('ta_validator', 'Paste file content here (or drop file when using Chrome).');
+
+//
+// H1 Link
+//
+$('h1').click(function(){
+  location.href='/';
+});
+ 
+//
+// Show AJAX Error
+//
+function help_error(xhr, settings, exception){
+  alert('error in: ' + xhr.statusText + ' \\n'+'response:\\n' + xhr.responseText.substr(1,1000) + ' \\n'+'uri:\\n' + settings.uri);
+}
+
+</script>
+
+</html>

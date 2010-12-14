@@ -1,0 +1,125 @@
+ 
+  body {
+  font: 12px arial;
+  line-height: 1.88889;
+  background: #fff; 
+  margin: 0; 
+  padding: 0;
+  }
+html {
+  margin: 0;
+  padding: 2%;
+  }
+
+table{
+ width:100%;
+}  
+
+table td{
+ vertical-align:top;
+}  
+
+
+textarea{
+ width:100%;
+ height:100px;
+}  
+
+.div_menu_adm{
+ float:right;
+}
+
+.div_menu_adm a{
+ padding:5px;
+ }
+
+.div_menu{
+ float:right;
+ color:white; 
+}
+
+.div_menu a{
+ visibility:hidden;
+ padding:5px;
+}
+
+.div_menu:hover {
+ color:black;
+}
+
+.div_menu:hover a{
+ visibility:visible;
+}
+
+/* Validator */
+
+
+.ta_file_hover{
+ border:1px solid red;
+}
+
+h1{
+ color:grey;
+ font: 20px arial; 
+ line-height: 2;
+ margin-bottom:3px;
+ cursor:pointer;
+}
+
+  
+#inp_content{
+ width:100%;
+}
+  
+.span_correct{
+ color:green;
+}  
+
+.span_wrong{
+ color:red;
+}  
+  
+.span_pos1{
+ color:#444444;
+}
+
+.span_pos2{
+ color:#888888;
+}
+
+.tbl_results td{
+ border: 1px solid #E0EDFE;
+ border-width: 1px 0px 0px 0px;
+ overflow:hidden;
+ height:20px;
+}
+
+.tbl_results th{
+ text-align:left;
+}
+.p_grey{
+ color:grey;
+}
+
+/*Generator*/
+#inp_gen_whitelist{
+ width:100%;
+}
+
+#a_generator_file, #a_validator_file{
+ display:block;
+ float:left;
+ height:80px;
+ width:60px;
+ border: 1px solid grey;
+ background-color:white;
+ overflow:hidden;
+ background-image:url(/stylesheets/file.png);
+ background-repeat:no-repeat;
+ background-position:center center;
+ margin-right:10px;
+}
+
+#a_generator_file:hover{
+ border: 1px solid blue;
+}
