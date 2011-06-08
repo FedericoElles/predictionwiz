@@ -7,11 +7,8 @@ from google.appengine.ext import db
 import hashlib
 
 def getUserHash():
-  user = users.get_current_user()
-  if user:
+    user = users.get_current_user().email()
     return hashlib.md5('salt'+user+'pepper').hexdigest()
-  else:
-    return False
 
 #
 # DataModel
@@ -44,7 +41,7 @@ class DataModel(db.Model):
     if model:
       return model.datafile
     else: 
-      return False
+      return ''    
 
   def getmy(self):
     records = DataModel.all()
@@ -70,23 +67,10 @@ class TextFile(db.Model):
   id = db.StringProperty()
   text = db.TextProperty()
   date = db.DateTimeProperty(auto_now_add=True)
-#
-# Store authentification keys
-#
+
 class ApiKey(db.Model):
   userhash = db.StringProperty()
-  userkey = db.TextProperty(default='') #v2: user.user_id()
-  accesskey = db.TextProperty(default='') #API access key
-  
-  def saveapikey(self,accesskey):
-    userhash = getUserHash()
-    apikey = self.get_by_key_name(userhash)
-    if not apikey:
-      apikey = ApiKey(key_name=userhash)
-    apikey.userhash = userhash      
-    apikey.accesskey = accesskey
-    apikey.put()
-    return 0
+  userkey = db.TextProperty()
 
   def save(self,userkey):
     userhash = getUserHash()
@@ -98,26 +82,18 @@ class ApiKey(db.Model):
     apikey.put()
     return 0
 
-  def getapikey(self):
+  def get(self):
     userhash = getUserHash()
     apikey = self.get_by_key_name(userhash)
     if apikey:
-      return apikey.accesskey
+      return apikey.userkey
     else:
       return ''
-
-  def getbyuser(self):
-    userhash = getUserHash()
-    apikey = self.get_by_key_name(userhash)
-    if apikey:
-      return apikey.userkey, apikey.accesskey
-    else:
-      return '',''
 
   def getbymodel(self,model):
     userhash = DataModel().getuserhash(model)
     apikey = self.get_by_key_name(userhash)
     if apikey:
-      return apikey.userkey, apikey.accesskey
+      return apikey.userkey
     else:
-      return '',''
+      return ''    
