@@ -305,7 +305,7 @@ Prediction Wizard
 <!--
   About
 -->
-	<p>Prediction Wizard - A GUI for the <a href="http://code.google.com/apis/predict/">Google Prediction API</a></p>	
+	<p>Prediction Wizard - A GUI for the <a href="http://code.google.com/apis/predict/">Google Prediction API v1.2</a></p>	
 
 <table>
 <tr>
@@ -314,8 +314,8 @@ Prediction Wizard
 </tr><tr> 
   <td>Based upon</td>
   <td>
-    <a href="http://code.google.com/p/google-prediction-api-samples/source/browse/#svn/trunk/blog_moderation">Sample Code</a> by
-	Brian McKenna, Robert Kaplow
+   <a href="http://code.google.com/p/google-api-python-client/source/browse/samples/prediction/prediction.py">google-api-python-client</a>Sample Code</a> by
+	Joe Gregorio
   </td>
 </tr><tr> 
   <td>Inspired by</td>
@@ -882,16 +882,20 @@ $('#form_gen').submit(function() {
 	type: 'POST',
     data: $('form').serialize(),
 	success: function(data) {
+	  data_debug = data;
 	  if ($('#datatype').val() == 'json'){
 	    html = '<b>';
-		if (data.data.outputLabel) {html+=data.data.outputLabel;}
-		if (data.data.outputValue) {html+=data.data.outputValue;}
+		if (data.outputLabel) 
+			{html+=data.outputLabel;} 
+		else 
+			{html+=data.outputValue.toString(2);}
+		
 		html +='</b>';
 		j=0;
 		
 		try {
-			if (data.data.outputMulti){
-				aSort = data.data.outputMulti.sort(outputSort);
+			if (data.outputMulti){
+				aSort = data.outputMulti.sort(outputSort);
 		
 				//show only second and third best reults
 				for (i=0;i<aSort.length;i++){

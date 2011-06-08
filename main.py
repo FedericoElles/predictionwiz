@@ -13,12 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# This code was created by Federico Elles which
-# can be found at http://code.google.com/p/predictionwiz/
 
+"""A simple blog application written on Google App Engine. This renders both the
+MainPage as well as the Moderation page, which will show the classification
+results.
+"""
 
-__author__ = 'Robert Kaplow vs. Federico Elles'
+__author__ = 'Robert Kaplow'
 
 import cgi
 import os
@@ -34,9 +35,8 @@ try:
 except ImportError:
   from django.utils import simplejson as json
 
-import google_prediction
-from data import DataModel, TextFile, ApiKey
-
+from data import DataModel, TextFile, ApiKey, getUserHash
+from adm import Predict
 
 def writeTemplate(self, name, template_values):
   path = os.path.join(os.path.dirname(__file__), name)
@@ -74,56 +74,75 @@ class Prediction(webapp.RequestHandler):
     post = cgi.escape(self.request.get('content'))
    
     # Make the Google Prediction API call
-    data = google_prediction.Predict(getAuth(model), DataModel().getdatafile(model), [post])
-    
-    addreturn = self.request.get('addreturn','')
-    if addreturn:
-      try:
-        json_content = json.loads(data)['data']
-        if 'outputLabel' in json_content:
-          self.response.out.write(json_content['outputLabel']) # classification task
-        elif 'outputValue' in json_content:
-          self.response.out.write(json_content['outputValue'])               
-        else:
-          self.response.out.write(cgi.escape(data))
-      except:
-        self.response.out.write(data)      
-      self.response.out.write(self.request.get('addreturn',''))
+    user = users.get_current_user()
+    if user:
+      userid, apikey = ApiKey().getbyuser()
     else:
-      self.response.out.write(cgi.escape(data))
+      userid, apikey = ApiKey().getbymodel(model)
+
+    datafile = False
+    mydatamodel = DataModel().get(model)
+    if mydatamodel:
+      if mydatamodel.public or mydatamodel.userhash == getUserHash():
+        datafile = mydatamodel.datafile
+    
+    
+    if datafile and userid and post:
+      data = Predict(userid, datafile, post)   
+
+      
+      addreturn = self.request.get('addreturn','')
+      if addreturn:
+        try:
+          json_content = json.loads(data)
+          if 'outputLabel' in json_content:
+            self.response.out.write(json_content['outputLabel']) # classification task
+          elif 'outputValue' in json_content:
+            self.response.out.write(json_content['outputValue'])               
+          else:
+            self.response.out.write(cgi.escape(data))
+        except:
+          self.response.out.write(data)      
+        self.response.out.write(self.request.get('addreturn',''))
+      else:
+        self.response.out.write(json.dumps(data))
+    else:
+      return {"error":"user, model or post were empty"}
+        
 
   def get(self):
-    model = cgi.escape(self.request.get('model'))
+    model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
+   
     # Make the Google Prediction API call
-    data = google_prediction.Predict(getAuth(model), DataModel().getdatafile(model), [post])
+    user = users.get_current_user()
+    if user:
+      userid, apikey = ApiKey().getbyuser()
+    else:
+      userid, apikey = ApiKey().getbymodel(model)
 
-    try:
-      json_content = json.loads(data)['data']
+    datafile = False
+    mydatamodel = DataModel().get(model)
+    if mydatamodel:
+      if mydatamodel.public or mydatamodel.userhash == getUserHash():
+        datafile = mydatamodel.datafile
 
-      # classification task
-      if 'outputLabel' in json_content:
-        self.response.out.write(json_content['outputLabel'])
-      elif 'outputValue' in json_content:
-        self.response.out.write(json_content['outputValue'])        
+    if datafile and userid and post:
+      data = Predict(userid, datafile, post)          
+
+      if 'outputLabel' in data:
+        self.response.out.write(data['outputLabel'])
+      elif 'outputValue' in data:
+        self.response.out.write(data['outputValue'])        
       else:
-        self.response.out.write(cgi.escape(json))
-    except:
-      self.response.out.write(data)
+        self.response.out.write(json.dumps(data))
+     
+    else:
+      self.response.out.write('ERROR: model or content missing')
+
     #always print add return reference
     self.response.out.write(self.request.get('addreturn',''))      
     
-
-#
-# Get Auth for API call
-#
-def getAuth(model):
-  if users.get_current_user():
-    auth = ApiKey().get()
-  else:
-    auth = ApiKey().getbymodel(model)
-  return auth.strip()
-
 
 
 #

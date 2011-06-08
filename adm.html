@@ -35,7 +35,6 @@ Prediction Wizard Admin
 	<ul>
 		<li><a href="#tabs-1">Models</a></li>
 		<!--<li><a href="#tabs-2">Storage</a></li>-->
-		<li><a href="#tabs-3">Setup</a></li>
 	</ul>
 	<div id="tabs-1">
 
@@ -145,86 +144,6 @@ Prediction Wizard Admin
   End
  -->	
 	
-
-	<div id="tabs-3">
-	
-<!--
-  Setup
--->
-
-<p>An auth token based on your Google Account credentials is needed to use this webapp. 
-  <a target="_blank" href="http://code.google.com/apis/predict/docs/developer-guide.html">Tell me more.</a>
-</p>
-  <table>
-  <tr>
-    <td style="width:200px;">Auth Token</td>
-	<td>
-	  <textarea id="ta_adm_key"></textarea>
-	</td>
-  </tr>
-  <tr>
-    <td>Disclaimer</td>
-	<td>
-	  <input type="checkbox" id="inp_adm_key_confirm1" /> 
-	  <label for="inp_adm_key_confirm1">
-	    I understand, that my Auth Token must be saved together with my salted e-mail address hash in 
-		the data storage to be able to use this webapp. No plain text e-mail address is stored.
-	  </label>
-	</td>
-  </tr>          
-  <tr>
-    <td></td>
-	<td>
-	  <button id="btn_adm_key_save">Save</button>
-	  <span id="span_adm_key_save"></span>
-	</td>
-  </tr>  
-
-  <tr>
-    <td><b>Generate Auth Token</b></td>
-	<td>
-	</td>
-  </tr>   
-  <tr>
-    <td>Prediction API User</td>
-	<td>
-	  <input id="span_adm_key_user" />
-	</td>
-  </tr>    
-  <tr>
-    <td>Password</td>
-	<td>
-	  <input type="password" id="span_adm_key_pass" />
-	</td>
-  </tr>     
-  <tr>
-    <td>Disclaimer</td>
-	<td>
-	  <input type="checkbox" id="inp_adm_key_confirm2" /> <label for="inp_adm_key_confirm2">I trust Federico Elles that my password and user are not stored anywhere.</label>
-	</td>
-  </tr>
-  <tr>
-    <td></td>
-	<td>
-	  <button id="btn_adm_key_generate">Generate</button>
-	  <span id="span_adm_key_generate"></span>
-	</td>
-  </tr>
-  <tr>
-    <td><b>Hint</b></td>
-	<td>
-	  If you do not trust this webapp (I would also not if it wasn't written be me), either
-	  create a new Google Account for the only purpose to
-	  use it with the Prediction API and this nice tool or <a href="http://code.google.com/p/predictionwiz/downloads/list">download the source code</a> and deploy it on your App Engine instance.
-	</td>
-  </tr>        
-  </table>  
-
-<!--
-  End
--->	
-	
-	</div>
 </div>
 
 </body>
@@ -240,68 +159,6 @@ var $tabs = $( "#tabs" ).tabs();
 // ----- //
 // Setup //
 // ----- //
-
-//
-// Save Key
-//
-$('#btn_adm_key_save').click(function() {
-  agreed = $('#inp_adm_key_confirm1').attr('checked');
-  if (agreed){  
-    $('#span_adm_key_save').html("Saving...");
-    $.ajax({url: '/adm/key',
-      type: 'POST',
-      data: {key: $('#ta_adm_key').val()},
-	  success: function(data) {
-	    $('#span_adm_key_save').html(data);
-      }
-    });
-  } else {
-    $('#span_adm_key_save').html("Please accept the disclaimer.");
-  }  
-});
-
-$('#ta_adm_key').attr('disabled','disabled');
-$('#ta_adm_key').load('/adm/key', function() {
-  $('#span_adm_key_save').html("Loaded");
-  $('#ta_adm_key').attr('disabled','');
-  //if no key, focus setup
-  if ($('#ta_adm_key').val() === ''){
-    $tabs.tabs('select',1);
-  }
-  
-});
-
-$('#ta_adm_key').change(function() {
-  $('#span_adm_key_save').html("Unsaved");
-});
-
-//
-// Generate Key
-//
-$('#btn_adm_key_generate').click(function() {
-  agreed = $('#inp_adm_key_confirm2').attr('checked');
-  if (agreed){
-    $('#span_adm_key_generate').html("Creating...");
-    $.ajax({url: '/adm/api/gettoken',
-  	  type: 'POST',
-      data: {user: $('#span_adm_key_user').val(), pass: $('#span_adm_key_pass').val()},
-	  success: function(data) {
-  	    $('#ta_adm_key').html(data);
-	    if (data == 'HTTPError = 403') {
-          response = "Authentification Error. Password or User wrong.";
-	    } else {
-  	      response = "Token copied.";	   
-		  $('#span_adm_key_user').val('');
-		  $('#span_adm_key_pass').val('');
-		  $('#span_adm_key_save').html("Unsaved");
-	    }
-	    $('#span_adm_key_generate').html(response);
-      }
-    });
-  } else {
-    $('#span_adm_key_generate').html("Please accept the disclaimer.");
-  }
-});
 
 
 // ------ //
@@ -364,6 +221,7 @@ function StartTheTimer(key)
 //
 // Train or Status click
 //
+var data_debug = {};
 function action(key, urlsuffix, datafile){
   $('#result_'+key).html("Working...");
   $('#btn_'+urlsuffix+'_'+key).attr('disabled','disabled');
@@ -372,18 +230,38 @@ function action(key, urlsuffix, datafile){
 	type: 'POST',
     data: {datafile: datafile},
 	success: function(data) {
+	  data_debug = data;
       if ($('#datatype').val() == 'json'){
-		if (urlsuffix == 'trainstatus'){ html = data.data.modelinfo;}
-	    if (urlsuffix == 'train'){ html = "Training has started for '" + data.data.data + '. Please check Status.';}
+		if (urlsuffix == 'trainstatus'){ 
+			if (data.trainingStatus == 'ERROR'){
+			  html = 'ERROR'
+			} else {
+				if (data.error){
+					html = 'ERROR: ' + data.error.message
+				} else {			
+					if (data.modelInfo.modelType == 'regression'){
+						html = 'MSE: ' + data.modelInfo.meanSquaredError + ' - ' + data.trainingStatus;
+					}
+					if (data.modelInfo.modelType == 'classification'){
+						html = 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
+					}
+				}
+			}
+		}
+	    if (urlsuffix == 'train'){ 
+			if (data.error){
+				html = 'ERROR: ' + data.error.message
+			} else {
+				html = "Training has started for '" + data.id + '. Please check Status.';
+				$('#span_train_'+key).html('Start');
+				InitializeTimer(key);
+			}
+		}
 	  } else {
 	    html = data;
 	  }
 	  $('#result_'+key).html(html); 
 	  $('#btn_'+urlsuffix+'_'+key).attr('disabled','');
-	  if (urlsuffix == 'train'){
-	    $('#span_train_'+key).html('Start');
-		InitializeTimer(key);
-	  }
     },
 	error: function(XMLHttpRequest, textStatus, errorThrown) {
 	  $('#btn_'+urlsuffix+'_'+key).attr('disabled','');

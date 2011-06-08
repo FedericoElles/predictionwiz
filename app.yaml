@@ -19,8 +19,12 @@ handlers:
   
 - url: /debug/.*
   script: adm.py
-  login: admin  
-    
+  login: admin    
+
+- url: /webstore/.*
+  script: webstore.py
+  secure: always
+
 - url: /.*
   script: main.py
-  secure: always  
+  secure: always
