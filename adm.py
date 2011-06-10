@@ -170,8 +170,8 @@ class MainPage(webapp.RequestHandler):
             # Visit https://code.google.com/apis/console to
             # generate your client_id, client_secret and to
             # register your redirect_uri.
-            client_id = '171963544562.apps.googleusercontent.com',
-            client_secret = '7bQAlIeYBOGpSve3nttukuOE',
+            client_id = '<your own client id>',
+            client_secret = '<your own client secret>',
 
             scope='https://www.googleapis.com/auth/prediction',
             user_agent='predictionwiz/1.2',
