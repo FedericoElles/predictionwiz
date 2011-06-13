@@ -21,8 +21,8 @@
 <body>
 <div class="div_menu_adm">
 <a href="/">Back</a>
-| <a target="_blank" href="https://sandbox.google.com/storage/#wiz">Storage</a>
-| <a href="/adm/exit">Signout</a>
+| <a target="_blank" href="https://code.google.com/apis/console/">API Console</a>
+| <a href="/adm/exit">Sign out</a>
 </div>
 
 
@@ -94,26 +94,26 @@ Prediction Wizard Admin
 <form action="/adm/new" method="POST">
   <table class="tbl_results">
   <tr>
-    <td>Bucket/ Learning file name</td>
+    <td>Bucket/ Learning file name*</td>
 	<td><input name="bucket" class="localstoragesave" id="inp_new_bucket" />/<input name="datafile" /></td>
   </tr>
   <tr>
-    <td>Caption*</td>
+    <td>Caption</td>
 	<td><input name="caption" /></td>
   </tr>  
   <tr>
-    <td>Public*</td>
+    <td>Public</td>
 	<td><input type="checkbox" name="public" /> Share model with the world</td>
   </tr>    
   <tr>
-    <td>Storage Check*</td>
+    <td>Storage Check</td>
 	<td>
 	  <input id="inp_create_model_check1" type="checkbox"/><label for="inp_create_model_check1">
-	    I created the bucket in my <a target="_blank" href="https://sandbox.google.com/storage/">Google Storage</a>
+	    I created the bucket in my Google Storage (<a target="_blank" href="https://code.google.com/apis/console">API Console</a> -> Google Storage -> Browse data).
 	  </label>
 	  <br/>
 	  <input id="inp_create_model_check2" type="checkbox"/><label for="inp_create_model_check2">
-	    I uploaded the learning file into my <a target="_blank" href="https://sandbox.google.com/storage/">Google Storage</a>
+	    I uploaded the learning file into my Google Storage (<a target="_blank" href="https://code.google.com/apis/console">API Console</a> -> Google Storage -> Browse data).
 	  </label>
 	
 	</td>
@@ -238,12 +238,16 @@ function action(key, urlsuffix, datafile){
 			} else {
 				if (data.error){
 					html = 'ERROR: ' + data.error.message
-				} else {			
-					if (data.modelInfo.modelType == 'regression'){
-						html = 'MSE: ' + data.modelInfo.meanSquaredError + ' - ' + data.trainingStatus;
-					}
-					if (data.modelInfo.modelType == 'classification'){
-						html = 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
+				} else {	
+					if (data.trainingStatus == "ERROR: TRAINING JOB NOT FOUND" || data.trainingStatus == "RUNNING"){
+						html = data.trainingStatus;
+					} else {
+						if (data.modelInfo.modelType == 'regression'){
+							html = 'MSE: ' + data.modelInfo.meanSquaredError + ' - ' + data.trainingStatus;
+						}
+						if (data.modelInfo.modelType == 'classification'){
+							html = 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
+						}
 					}
 				}
 			}

@@ -5,11 +5,12 @@
 from google.appengine.api import users
 from google.appengine.ext import db
 import hashlib
+from config import getConfig
 
 def getUserHash():
   user = users.get_current_user()
   if user:
-    return hashlib.md5('salt'+user+'pepper').hexdigest()
+    return hashlib.md5(getConfig('salt')+user.email()+getConfig('pepper')).hexdigest()
   else:
     return False
 

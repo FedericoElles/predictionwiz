@@ -118,14 +118,14 @@ class Prediction(webapp.RequestHandler):
     user = users.get_current_user()
     if user:
       userid, apikey = ApiKey().getbyuser()
-    else:
+    if not user or not userid:
       userid, apikey = ApiKey().getbymodel(model)
 
     datafile = False
     mydatamodel = DataModel().get(model)
     if mydatamodel:
-      if mydatamodel.public or mydatamodel.userhash == getUserHash():
-        datafile = mydatamodel.datafile
+      #if mydatamodel.public or mydatamodel.userhash == getUserHash(): #not required since you don't want to make a model public to access it.
+      datafile = mydatamodel.datafile
 
     if datafile and userid and post:
       data = Predict(userid, datafile, post)          
