@@ -58,6 +58,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import util
 from apiclient.errors import HttpError as HTTPError
+from config import getConfig
 
 class Credentials(db.Model):
   credentials = CredentialsProperty()
@@ -167,12 +168,8 @@ class MainPage(webapp.RequestHandler):
 
       if credentials is None or credentials.invalid == True:
         flow = OAuth2WebServerFlow(
-            # Visit https://code.google.com/apis/console to
-            # generate your client_id, client_secret and to
-            # register your redirect_uri.
-            client_id = '<your own client id>',
-            client_secret = '<your own client secret>',
-
+            client_id = getConfig('client_id'), 
+            client_secret = getConfig('client_secret'),
             scope='https://www.googleapis.com/auth/prediction',
             user_agent='predictionwiz/1.2',
             domain='anonymous',
@@ -201,7 +198,7 @@ class OAuthHandler(webapp.RequestHandler):
         StorageByKeyName(
             Credentials, user.user_id(), 'credentials').put(credentials)
         ApiKey().save(user.user_id())
-        self.redirect("/adm/debug_oauth_check")
+        self.redirect("/adm/")
       else:
         pass
     else:
