@@ -831,7 +831,7 @@ $('#btn_validator').click(function() {
 			'</tr>');
 		  j++;
 		  //submit request
-		  setTimeout('predictRecord("'+model+'","'+ sResult+'","'+ sTestData+'","'+ i+'")',1000);
+		  setTimeout('predictRecord("'+model+'","'+ sResult+'","'+ sTestData+'","'+ i+'")',1000*i);
 		  //predictRecord(model, sResult, sTestData, i);
 		  //end submit request
 		}
