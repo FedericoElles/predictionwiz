@@ -18,6 +18,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext import db
 from google.appengine.api import namespace_manager
+from config import getConfig
 
 import os
 import cgi
@@ -72,36 +73,44 @@ class WebData(db.Model):
 #
 class webstore(webapp.RequestHandler):
     def get(self,project, group, name):
-      if self.request.get('data'):
-        self.post(project, group, name)
-      else:
-        self.response.headers["Access-Control-Allow-Origin"] = "*"
-        namespace_manager.set_namespace(project)
-        webdata = WebData.get_by_key_name(group+'/'+name)
-        if webdata:
-          helpWrite(self,webdata.value)
+      if getConfig('webstore'):      
+        if self.request.get('data'):
+          self.post(project, group, name)
         else:
-          helpWrite(self,'-1 data not found')
+          self.response.headers["Access-Control-Allow-Origin"] = "*"
+          namespace_manager.set_namespace(project)
+          webdata = WebData.get_by_key_name(group+'/'+name)
+          if webdata:
+            helpWrite(self,webdata.value)
+          else:
+            helpWrite(self,'-1 data not found')
+      else:
+        helpWrite(self,'-1 webstore service not activated')
+            
 
     def post(self,project, group, name):
       self.response.headers["Access-Control-Allow-Origin"] = "*"
       newvalue = self.request.get('data')
-      if newvalue:
-        namespace_manager.set_namespace(project)
-        webdata = WebData.get_by_key_name(group+'/'+name)
-        if webdata:
-          webdata.value = newvalue
-          webdata.put()
-          helpWrite(self,'0 saved')
+      if getConfig('webstore'):
+        if newvalue:
+          namespace_manager.set_namespace(project)
+          webdata = WebData.get_by_key_name(group+'/'+name)
+          if webdata:
+            webdata.value = newvalue
+            webdata.put()
+            helpWrite(self,'0 saved')
+          else:
+            webdata = WebData(key_name=group+'/'+name)
+            webdata.group = group
+            webdata.name = name
+            webdata.value = newvalue
+            webdata.put()
+            helpWrite(self,'0 saved')
         else:
-          webdata = WebData(key_name=group+'/'+name)
-          webdata.group = group
-          webdata.name = name
-          webdata.value = newvalue
-          webdata.put()
-          helpWrite(self,'0 saved')
+          helpWrite(self,'-1 data parameter missing')
       else:
-        helpWrite(self,'-1 data parameter missing')
+        helpWrite(self,'-1 webstore service not activated')
+                  
 
 #
 # returns all values for group
@@ -113,17 +122,20 @@ class webstores(webapp.RequestHandler):
       
       webdatas = WebData.all()
       webdatas.filter("group =",group)
-
-      if webdatas:
-        values = []
-        for data in webdatas:
-          values.append({'name':data.name, 'value':data.value})
+      if getConfig('webstore'):
+        if webdatas:
+          values = []
+          for data in webdatas:
+            values.append({'name':data.name, 'value':data.value})
+            
+          values = json.dumps({'values':values})
           
-        values = json.dumps({'values':values})
-        
-        helpWrite(self,values)
+          helpWrite(self,values)
+        else:
+          helpWrite(self,'-1 data not found for group' + group)
       else:
-        helpWrite(self,'-1 data not found for group' + group)
+        helpWrite(self,'-1 webstore service not activated')
+        
 
 #
 #-------------------------------------------------------------------------------

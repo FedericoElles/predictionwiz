@@ -314,7 +314,7 @@ Prediction Wizard
 </tr><tr> 
   <td>Based upon</td>
   <td>
-   <a href="http://code.google.com/p/google-api-python-client/source/browse/samples/prediction/prediction.py">google-api-python-client</a>Sample Code</a> by
+   <a href="http://code.google.com/p/google-api-python-client/source/browse/samples/prediction/prediction.py">google-api-python-client</a> Sample Code</a> by
 	Joe Gregorio
   </td>
 </tr><tr> 
@@ -352,7 +352,7 @@ Prediction Wizard
 </div>
 
 <p class="p_grey">
-   It's a webapp, not a website. Created by Federico Elles, 2010. <a href="http://code.google.com/p/predictionwiz/downloads/list">Download source code</a>
+   It's a webapp, not a website. Created by Federico Elles, 2011. <a href="http://code.google.com/p/predictionwiz/downloads/list">Download source code</a>
 </p>
 
 </body>
@@ -771,6 +771,7 @@ function predictRecord(model, result, testdata, i){
 	type: 'POST',
 	data: {model:model,content:testdata,addreturn:'||'+i+'||'+result},
 	success: function(data) {
+	
 	  asReturn = data.split('||');
 	  if (asReturn.length == 3){
 		
@@ -830,7 +831,8 @@ $('#btn_validator').click(function() {
 			'</tr>');
 		  j++;
 		  //submit request
-		  predictRecord(model, sResult, sTestData, i);
+		  setTimeout('predictRecord("'+model+'","'+ sResult+'","'+ sTestData+'","'+ i+'")',1000);
+		  //predictRecord(model, sResult, sTestData, i);
 		  //end submit request
 		}
 	}

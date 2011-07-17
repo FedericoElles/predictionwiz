@@ -72,6 +72,8 @@ class Prediction(webapp.RequestHandler):
   def post(self):
     model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
+
+    
    
     # Make the Google Prediction API call
     user = users.get_current_user()
@@ -86,28 +88,33 @@ class Prediction(webapp.RequestHandler):
       if mydatamodel.public or mydatamodel.userhash == getUserHash():
         datafile = mydatamodel.datafile
     
-    
+    addreturn = self.request.get('addreturn','')
     if datafile and userid and post:
-      data = Predict(userid, datafile, post)   
+      try:
+        data = Predict(userid, datafile, post)
+      except:
+        data = {'outputValue':'error'}
 
       
-      addreturn = self.request.get('addreturn','')
+     
       if addreturn:
         try:
-          json_content = json.loads(data)
-          if 'outputLabel' in json_content:
-            self.response.out.write(json_content['outputLabel']) # classification task
-          elif 'outputValue' in json_content:
-            self.response.out.write(json_content['outputValue'])               
+          if 'outputLabel' in data:
+            self.response.out.write(data['outputLabel'])
+          elif 'outputValue' in data:
+            self.response.out.write(data['outputValue'])        
           else:
-            self.response.out.write(cgi.escape(data))
+            self.response.out.write(json.dumps(data))
         except:
-          self.response.out.write(data)      
+          self.response.out.write(json.dumps(data))   
         self.response.out.write(self.request.get('addreturn',''))
       else:
         self.response.out.write(json.dumps(data))
     else:
-      return {"error":"user, model or post were empty"}
+      if addreturn:
+        self.response.out.write( 'error'+addreturn)
+      else:
+        self.response.out.write( '{"error":"user, model or post were empty"}')
         
 
   def get(self):
