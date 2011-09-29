@@ -262,7 +262,7 @@ def Training(userid, action, model):
   except AccessTokenRefreshError:
     return {"error":{"message":"The credentials have been revoked or expired, please re-run the application to re-authorize"}}
   except HTTPError,e:
-    return json.loads(e.content)
+    return json.loads(e.content) 
 
   
 
@@ -275,7 +275,7 @@ def Predict(userid, model, query):
   http = httplib2.Http()
   http = credentials.authorize(http)
   service = build("prediction", "v1.2", http=http)
-  body = {'input': {'csvInstance': [query]}}
+  body = {'input': {'csvInstance': query.split(',')}} #
   prediction = service.predict(body=body, data=model).execute()
 
   return prediction
