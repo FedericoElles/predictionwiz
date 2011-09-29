@@ -759,7 +759,7 @@ $('#btn_export').click(function() {
 function reloadRecord(i){
   $('#td_result'+i).removeClass('span_wrong');
   $('#td_result'+i).removeClass('span_correct');
-  predictRecord($('#inp_model').val(), $('#result'+i).html(),$('#testdata'+i).html(),i);
+  predictRecord($('#inp_model_val').val(), $('#result'+i).html(),$('#testdata'+i).html(),i);
 }
 
 //
@@ -819,10 +819,12 @@ $('#btn_validator').click(function() {
 	model = $('#inp_model_val').val();
     for (i=0;i<asRow.length;i++){
 		
-		asRecord = asRow[i].split('",');
+		asRecord = asRow[i].split(',');
 		if (asRecord.length > 1){
 		  sResult = asRecord[0].replace(/"/g,"");
-		  sTestData = asRecord[1].replace(/"/g,"");
+		  asRecord.shift();
+		  sTestData = asRecord.join(',');
+		  //sTestData = asRecord[1].replace(/"/g,"");
 		  $('#tb_val_results').append('<tr rowid="'+i+'" class="val_train_row" id="row'+i+'">'+
 			'<td id="testdata'+i+'">'+sTestData+'</td>'+
 			'<td id="result'+i+'">'+sResult+'</td>'+
