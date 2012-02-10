@@ -22,9 +22,11 @@ MainPage as well as the Moderation page, which will show the classification
 results.
 """
 
+from __future__ import with_statement
+
 __author__ = 'Robert Kaplow, Federico Elles'
 
-
+from google.appengine.api import files
 
 from google.appengine.ext.webapp.util import run_wsgi_app
 
@@ -64,6 +66,15 @@ class Credentials(db.Model):
   credentials = CredentialsProperty()
 
 from data import DataModel, ApiKey, getUserHash
+
+
+#storage api
+try:
+  files.gs
+except AttributeError:
+  import gs
+  files.gs = gs
+
 
 
 #time interpretation
@@ -171,7 +182,7 @@ class MainPage(webapp.RequestHandler):
             client_id = getConfig('client_id'), 
             client_secret = getConfig('client_secret'),
             scope='https://www.googleapis.com/auth/prediction',
-            user_agent='predictionwiz/1.2',
+            user_agent='predictionwiz/1.4',
             domain='anonymous',
             xoauth_displayname='Prediction Wizard')
 
@@ -244,6 +255,7 @@ class oAuthCheck2(webapp.RequestHandler):
 
 #
 # Ask for training status
+# New API DOC: http://api-python-client-doc.appspot.com/prediction/v1.4/trainedmodels
 #
 def Training(userid, action, model):
   try:  
@@ -251,12 +263,12 @@ def Training(userid, action, model):
       Credentials, userid, 'credentials').get()
     http = httplib2.Http()
     http = credentials.authorize(http)
-    service = build("prediction", "v1.2", http=http)
-    train = service.training()
-    body = {'id' : model}
+    service = build("prediction", "v1.4", http=http)
+    train = service.trainedmodels()
     if (action == 'get'):
-      start = train.get(data=model).execute()
+      start = train.get(id=model).execute()
     if (action == 'insert'):
+      body = {'storageDataLocation' : model}
       start = train.insert(body=body).execute()
     return start
   except AccessTokenRefreshError:
@@ -274,9 +286,10 @@ def Predict(userid, model, query):
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.2", http=http)
-  body = {'input': {'csvInstance': query.split(',')}} #
-  prediction = service.predict(body=body, data=model).execute()
+  service = build("prediction", "v1.4", http=http)
+  train = service.trainedmodels()
+  body = {'input': {'csvInstance': query.split(',')}}
+  prediction = train.predict(body=body, id=model).execute()
 
   return prediction
 
@@ -304,8 +317,17 @@ def GetPostDataOld(query):
 
 
 
-
-
+class oStorageAPICheck(webapp.RequestHandler):
+  def get(self):
+    filename = self.request.get('filename') or 'api.txt'
+    filename = '/gs/wiz/'+filename
+    writable_file_name = files.gs.create(filename, mime_type='text/plain')
+    with files.open(writable_file_name, 'a') as f:
+      f.write('Hello World!')
+      f.write('This is my first Google Cloud Storage object!\n')
+      f.write('How exciting!')
+    files.finalize(writable_file_name)
+    self.response.out.write('file '+filename+' was written successfully.')
 
 
 application = webapp.WSGIApplication([
@@ -316,7 +338,7 @@ application = webapp.WSGIApplication([
             ('/adm/api/train', AdmTrain),
             ('/adm/api/trainstatus', AdmTrainStatus),
             ('/adm/auth', OAuthHandler),
-            ('/adm/debug_oauth_check', oAuthCheck2)
+            ('/adm/debug_storage', oStorageAPICheck)
             ],
             debug=True)
 

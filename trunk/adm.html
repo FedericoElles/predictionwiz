@@ -28,7 +28,7 @@
 
 <h1 title="Home">
 <img src="/stylesheets/logo.png">
-Prediction Wizard Admin
+Prediction Wizard Admin v1.4
 </h1>
 
 <div id="tabs">
@@ -109,11 +109,11 @@ Prediction Wizard Admin
     <td>Storage Check</td>
 	<td>
 	  <input id="inp_create_model_check1" type="checkbox"/><label for="inp_create_model_check1">
-	    I created the bucket in my Google Storage (<a target="_blank" href="https://code.google.com/apis/console">API Console</a> -> Google Storage -> Browse data).
+	    I created the bucket in my Google Storage (<a target="_blank" href="https://sandbox.google.com/storage/">Google Cloud Storage</a>).
 	  </label>
 	  <br/>
 	  <input id="inp_create_model_check2" type="checkbox"/><label for="inp_create_model_check2">
-	    I uploaded the learning file into my Google Storage (<a target="_blank" href="https://code.google.com/apis/console">API Console</a> -> Google Storage -> Browse data).
+	    I uploaded the learning file into my Google Storage (<a target="_blank" href="https://sandbox.google.com/storage/">Google Cloud Storage</a>).
 	  </label>
 	
 	</td>
@@ -247,6 +247,9 @@ function action(key, urlsuffix, datafile){
 						}
 						if (data.modelInfo.modelType == 'classification'){
 							html = 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
+						}
+						if (data.modelInfo.numberInstances == '0'){
+							html = 'ERROR: Number of valid data instances used in the trained model = 0';
 						}
 					}
 				}

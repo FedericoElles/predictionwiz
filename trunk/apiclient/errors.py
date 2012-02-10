@@ -40,8 +40,7 @@ class HttpError(Error):
     self.uri = uri
 
   def _get_reason(self):
-    """Calculate the reason for the error from the response content.
-    """
+    """Calculate the reason for the error from the response content."""
     if self.resp.get('content-type', '').startswith('application/json'):
       try:
         data = simplejson.loads(self.content)
@@ -70,3 +69,46 @@ class InvalidJsonError(Error):
 class UnknownLinkType(Error):
   """Link type unknown or unexpected."""
   pass
+
+
+class UnknownApiNameOrVersion(Error):
+  """No API with that name and version exists."""
+  pass
+
+
+class UnacceptableMimeTypeError(Error):
+  """That is an unacceptable mimetype for this operation."""
+  pass
+
+
+class MediaUploadSizeError(Error):
+  """Media is larger than the method can accept."""
+  pass
+
+
+class ResumableUploadError(Error):
+  """Error occured during resumable upload."""
+  pass
+
+
+class BatchError(Error):
+  """Error occured during batch operations."""
+  pass
+
+
+class UnexpectedMethodError(Error):
+  """Exception raised by RequestMockBuilder on unexpected calls."""
+
+  def __init__(self, methodId=None):
+    """Constructor for an UnexpectedMethodError."""
+    super(UnexpectedMethodError, self).__init__(
+        'Received unexpected call %s' % methodId)
+
+
+class UnexpectedBodyError(Error):
+  """Exception raised by RequestMockBuilder on unexpected bodies."""
+
+  def __init__(self, expected, provided):
+    """Constructor for an UnexpectedMethodError."""
+    super(UnexpectedBodyError, self).__init__(
+        'Expected: [%s] - Provided: [%s]' % (expected, provided))

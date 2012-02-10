@@ -90,10 +90,10 @@ class Prediction(webapp.RequestHandler):
     
     addreturn = self.request.get('addreturn','')
     if datafile and userid and post:
-      try:
-        data = Predict(userid, datafile, post)
-      except:
-        data = {'outputValue':'error'}
+      #try:
+      data = Predict(userid, datafile, post)
+      #except:
+      #  data = {'outputValue':'error'}
 
       
      
