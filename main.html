@@ -31,7 +31,7 @@
 
 <h1 title="Home">
 <img src="/stylesheets/logo.png">
-Prediction Wizard
+Prediction Wizard v1.4
 </h1>
 <div id="tabs">
 	<ul>
@@ -352,7 +352,7 @@ Prediction Wizard
 </div>
 
 <p class="p_grey">
-   It's a webapp, not a website. Created by Federico Elles, 2011. <a href="http://code.google.com/p/predictionwiz/downloads/list">Download source code</a>
+   It's a webapp, not a website. Created by Federico Elles, 2011-2012. <a href="http://code.google.com/p/predictionwiz/downloads/list">Download source code</a>
 </p>
 
 </body>
@@ -548,7 +548,8 @@ $('#btn_generator').click(function() {
 		  while (sStr.indexOf('  ') > -1){
 		    sStr = sStr.replace(/  /g,' ');
 		  }
-		  
+		  // kill "
+		  sStr = sStr.replace(/"/g,'');
 		  //lowercase
 		  if (lowercase){sStr = sStr.toLowerCase();}
 		  //filter 
@@ -833,7 +834,10 @@ $('#btn_validator').click(function() {
 			'</tr>');
 		  j++;
 		  //submit request
-		  setTimeout('predictRecord("'+model+'","'+ sResult+'","'+ sTestData+'","'+ i+'")',1000*i);
+		  setTimeout("predictRecord('"+model+"','"+ sResult+"','"+ sTestData+"','"+ i+"');",1000*i);
+		  //setTimeout(function(){
+		  //  predictRecord(model,sResult,sTestData+,i)
+		  //},1000*i);
 		  //predictRecord(model, sResult, sTestData, i);
 		  //end submit request
 		}

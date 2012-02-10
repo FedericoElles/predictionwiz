@@ -22,24 +22,39 @@ __all__ = [
     'build', 'build_from_document'
     ]
 
+import copy
 import httplib2
 import logging
 import os
+import random
 import re
 import uritemplate
 import urllib
 import urlparse
+import mimeparse
+import mimetypes
+
 try:
     from urlparse import parse_qsl
 except ImportError:
     from cgi import parse_qsl
 
-from http import HttpRequest
-from anyjson import simplejson
-from model import JsonModel
-from errors import UnknownLinkType
-from errors import HttpError
-from errors import InvalidJsonError
+from apiclient.anyjson import simplejson
+from apiclient.errors import HttpError
+from apiclient.errors import InvalidJsonError
+from apiclient.errors import MediaUploadSizeError
+from apiclient.errors import UnacceptableMimeTypeError
+from apiclient.errors import UnknownApiNameOrVersion
+from apiclient.errors import UnknownLinkType
+from apiclient.http import HttpRequest
+from apiclient.http import MediaFileUpload
+from apiclient.http import MediaUpload
+from apiclient.model import JsonModel
+from apiclient.model import RawModel
+from apiclient.schema import Schemas
+from email.mime.multipart import MIMEMultipart
+from email.mime.nonmultipart import MIMENonMultipart
+
 
 URITEMPLATE = re.compile('{[^}]*}')
 VARNAME = re.compile('[a-zA-Z0-9_-]+')
@@ -49,7 +64,45 @@ DEFAULT_METHOD_DOC = 'A description of how to use this function'
 
 # Query parameters that work, but don't appear in discovery
 STACK_QUERY_PARAMETERS = ['trace', 'fields', 'pp', 'prettyPrint', 'userIp',
-  'strict']
+  'userip', 'strict']
+
+RESERVED_WORDS = ['and', 'assert', 'break', 'class', 'continue', 'def', 'del',
+                  'elif', 'else', 'except', 'exec', 'finally', 'for', 'from',
+                  'global', 'if', 'import', 'in', 'is', 'lambda', 'not', 'or',
+                  'pass', 'print', 'raise', 'return', 'try', 'while' ]
+
+
+def _fix_method_name(name):
+  if name in RESERVED_WORDS:
+    return name + '_'
+  else:
+    return name
+
+
+def _write_headers(self):
+  # Utility no-op method for multipart media handling
+  pass
+
+
+def _add_query_parameter(url, name, value):
+  """Adds a query parameter to a url
+
+  Args:
+    url: string, url to add the query parameter to.
+    name: string, query parameter name.
+    value: string, query parameter value.
+
+  Returns:
+    Updated query parameter. Does not update the url if value is None.
+  """
+  if value is None:
+    return url
+  else:
+    parsed = list(urlparse.urlparse(url))
+    q = parse_qsl(parsed[4])
+    q.append((name, value))
+    parsed[4] = urllib.urlencode(q)
+    return urlparse.urlunparse(parsed)
 
 
 def key2param(key):
@@ -107,21 +160,36 @@ def build(serviceName, version,
 
   if http is None:
     http = httplib2.Http()
+
   requested_url = uritemplate.expand(discoveryServiceUrl, params)
+
+  # REMOTE_ADDR is defined by the CGI spec [RFC3875] as the environment
+  # variable that contains the network address of the client sending the
+  # request. If it exists then add that to the request for the discovery
+  # document to avoid exceeding the quota on discovery requests.
+  if 'REMOTE_ADDR' in os.environ:
+    requested_url = _add_query_parameter(requested_url, 'userIp',
+                                         os.environ['REMOTE_ADDR'])
   logging.info('URL being requested: %s' % requested_url)
+
   resp, content = http.request(requested_url)
-  if resp.status > 400:
+
+  if resp.status == 404:
+    raise UnknownApiNameOrVersion("name: %s  version: %s" % (serviceName,
+                                                            version))
+  if resp.status >= 400:
     raise HttpError(resp, content, requested_url)
+
   try:
     service = simplejson.loads(content)
   except ValueError, e:
     logging.error('Failed to parse as JSON: ' + content)
     raise InvalidJsonError()
 
-  fn = os.path.join(os.path.dirname(__file__), 'contrib',
+  filename = os.path.join(os.path.dirname(__file__), 'contrib',
       serviceName, 'future.json')
   try:
-    f = file(fn, 'r')
+    f = file(filename, 'r')
     future = f.read()
     f.close()
   except IOError:
@@ -171,12 +239,13 @@ def build_from_document(
   else:
     future = {}
     auth_discovery = {}
+  schema = Schemas(service)
 
   if model is None:
     features = service.get('features', [])
     model = JsonModel('dataWrapper' in features)
   resource = createResource(http, base, model, requestBuilder, developerKey,
-                       service, future)
+                       service, future, schema)
 
   def auth_method():
     """Discovery information about the authentication the API uses."""
@@ -217,9 +286,28 @@ def _cast(value, schema_type):
     else:
       return str(value)
 
+MULTIPLIERS = {
+    "KB": 2 ** 10,
+    "MB": 2 ** 20,
+    "GB": 2 ** 30,
+    "TB": 2 ** 40,
+    }
+
+
+def _media_size_to_long(maxSize):
+  """Convert a string media size, such as 10GB or 3TB into an integer."""
+  if len(maxSize) < 2:
+    return 0
+  units = maxSize[-2:].upper()
+  multiplier = MULTIPLIERS.get(units, 0)
+  if multiplier:
+    return int(maxSize[:-2]) * multiplier
+  else:
+    return int(maxSize)
+
 
 def createResource(http, baseUrl, model, requestBuilder,
-                   developerKey, resourceDesc, futureDesc):
+                   developerKey, resourceDesc, futureDesc, schema):
 
   class Resource(object):
     """A class for interacting with a resource."""
@@ -232,9 +320,20 @@ def createResource(http, baseUrl, model, requestBuilder,
       self._requestBuilder = requestBuilder
 
   def createMethod(theclass, methodName, methodDesc, futureDesc):
+    methodName = _fix_method_name(methodName)
     pathUrl = methodDesc['path']
     httpMethod = methodDesc['httpMethod']
     methodId = methodDesc['id']
+
+    mediaPathUrl = None
+    accept = []
+    maxSize = 0
+    if 'mediaUpload' in methodDesc:
+      mediaUpload = methodDesc['mediaUpload']
+      mediaPathUrl = mediaUpload['protocols']['simple']['path']
+      mediaResumablePathUrl = mediaUpload['protocols']['resumable']['path']
+      accept = mediaUpload['accept']
+      maxSize = _media_size_to_long(mediaUpload.get('maxSize', ''))
 
     if 'parameters' not in methodDesc:
       methodDesc['parameters'] = {}
@@ -250,6 +349,17 @@ def createResource(http, baseUrl, model, requestBuilder,
           'type': 'object',
           'required': True,
           }
+      if 'request' in methodDesc:
+        methodDesc['parameters']['body'].update(methodDesc['request'])
+      else:
+        methodDesc['parameters']['body']['type'] = 'object'
+      if 'mediaUpload' in methodDesc:
+        methodDesc['parameters']['media_body'] = {
+            'description': 'The filename of the media request body.',
+            'type': 'string',
+            'required': False,
+            }
+        methodDesc['parameters']['body']['required'] = False
 
     argmap = {} # Map from method parameter name to query parameter name
     required_params = [] # Required parameters
@@ -298,10 +408,15 @@ def createResource(http, baseUrl, model, requestBuilder,
 
       for name, regex in pattern_params.iteritems():
         if name in kwargs:
-          if re.match(regex, kwargs[name]) is None:
-            raise TypeError(
-                'Parameter "%s" value "%s" does not match the pattern "%s"' %
-                (name, kwargs[name], regex))
+          if isinstance(kwargs[name], basestring):
+            pvalues = [kwargs[name]]
+          else:
+            pvalues = kwargs[name]
+          for pvalue in pvalues:
+            if re.match(regex, pvalue) is None:
+              raise TypeError(
+                  'Parameter "%s" value "%s" does not match the pattern "%s"' %
+                  (name, pvalue, regex))
 
       for name, enums in enum_params.iteritems():
         if name in kwargs:
@@ -324,33 +439,127 @@ def createResource(http, baseUrl, model, requestBuilder,
         if key in path_params:
           actual_path_params[argmap[key]] = cast_value
       body_value = kwargs.get('body', None)
+      media_filename = kwargs.get('media_body', None)
 
       if self._developerKey:
         actual_query_params['key'] = self._developerKey
 
+      model = self._model
+      # If there is no schema for the response then presume a binary blob.
+      if 'response' not in methodDesc:
+        model = RawModel()
+
       headers = {}
-      headers, params, query, body = self._model.request(headers,
+      headers, params, query, body = model.request(headers,
           actual_path_params, actual_query_params, body_value)
 
-      # TODO(ade) This exists to fix a bug in V1 of the Buzz discovery
-      # document.  Base URLs should not contain any path elements. If they do
-      # then urlparse.urljoin will strip them out This results in an incorrect
-      # URL which returns a 404
-      url_result = urlparse.urlsplit(self._baseUrl)
-      new_base_url = url_result[0] + '://' + url_result[1]
-
       expanded_url = uritemplate.expand(pathUrl, params)
-      url = urlparse.urljoin(self._baseUrl,
-                             url_result[2] + expanded_url + query)
+      url = urlparse.urljoin(self._baseUrl, expanded_url + query)
+
+      resumable = None
+      multipart_boundary = ''
+
+      if media_filename:
+        # Convert a simple filename into a MediaUpload object.
+        if isinstance(media_filename, basestring):
+          (media_mime_type, encoding) = mimetypes.guess_type(media_filename)
+          if media_mime_type is None:
+            raise UnknownFileType(media_filename)
+          if not mimeparse.best_match([media_mime_type], ','.join(accept)):
+            raise UnacceptableMimeTypeError(media_mime_type)
+          media_upload = MediaFileUpload(media_filename, media_mime_type)
+        elif isinstance(media_filename, MediaUpload):
+          media_upload = media_filename
+        else:
+          raise TypeError('media_filename must be str or MediaUpload.')
+
+        if media_upload.resumable():
+          resumable = media_upload
+
+        # Check the maxSize
+        if maxSize > 0 and media_upload.size() > maxSize:
+          raise MediaUploadSizeError("Media larger than: %s" % maxSize)
+
+        # Use the media path uri for media uploads
+        if media_upload.resumable():
+          expanded_url = uritemplate.expand(mediaResumablePathUrl, params)
+        else:
+          expanded_url = uritemplate.expand(mediaPathUrl, params)
+        url = urlparse.urljoin(self._baseUrl, expanded_url + query)
+
+        if body is None:
+          # This is a simple media upload
+          headers['content-type'] = media_upload.mimetype()
+          expanded_url = uritemplate.expand(mediaResumablePathUrl, params)
+          if not media_upload.resumable():
+            body = media_upload.getbytes(0, media_upload.size())
+        else:
+          # This is a multipart/related upload.
+          msgRoot = MIMEMultipart('related')
+          # msgRoot should not write out it's own headers
+          setattr(msgRoot, '_write_headers', lambda self: None)
+
+          # attach the body as one part
+          msg = MIMENonMultipart(*headers['content-type'].split('/'))
+          msg.set_payload(body)
+          msgRoot.attach(msg)
+
+          # attach the media as the second part
+          msg = MIMENonMultipart(*media_upload.mimetype().split('/'))
+          msg['Content-Transfer-Encoding'] = 'binary'
+
+          if media_upload.resumable():
+            # This is a multipart resumable upload, where a multipart payload
+            # looks like this:
+            #
+            #  --===============1678050750164843052==
+            #  Content-Type: application/json
+            #  MIME-Version: 1.0
+            #
+            #  {'foo': 'bar'}
+            #  --===============1678050750164843052==
+            #  Content-Type: image/png
+            #  MIME-Version: 1.0
+            #  Content-Transfer-Encoding: binary
+            #
+            #  <BINARY STUFF>
+            #  --===============1678050750164843052==--
+            #
+            # In the case of resumable multipart media uploads, the <BINARY
+            # STUFF> is large and will be spread across multiple PUTs.  What we
+            # do here is compose the multipart message with a random payload in
+            # place of <BINARY STUFF> and then split the resulting content into
+            # two pieces, text before <BINARY STUFF> and text after <BINARY
+            # STUFF>. The text after <BINARY STUFF> is the multipart boundary.
+            # In apiclient.http the HttpRequest will send the text before
+            # <BINARY STUFF>, then send the actual binary media in chunks, and
+            # then will send the multipart delimeter.
+
+            payload = hex(random.getrandbits(300))
+            msg.set_payload(payload)
+            msgRoot.attach(msg)
+            body = msgRoot.as_string()
+            body, _ = body.split(payload)
+            resumable = media_upload
+          else:
+            payload = media_upload.getbytes(0, media_upload.size())
+            msg.set_payload(payload)
+            msgRoot.attach(msg)
+            body = msgRoot.as_string()
+
+          multipart_boundary = msgRoot.get_boundary()
+          headers['content-type'] = ('multipart/related; '
+                                     'boundary="%s"') % multipart_boundary
 
       logging.info('URL being requested: %s' % url)
       return self._requestBuilder(self._http,
-                                  self._model.response,
+                                  model.response,
                                   url,
                                   method=httpMethod,
                                   body=body,
                                   headers=headers,
-                                  methodId=methodId)
+                                  methodId=methodId,
+                                  resumable=resumable)
 
     docs = [methodDesc.get('description', DEFAULT_METHOD_DOC), '\n\n']
     if len(argmap) > 0:
@@ -366,30 +575,45 @@ def createResource(http, baseUrl, model, requestBuilder,
         required = ' (required)'
       paramdesc = methodDesc['parameters'][argmap[arg]]
       paramdoc = paramdesc.get('description', 'A parameter')
-      paramtype = paramdesc.get('type', 'string')
-      docs.append('  %s: %s, %s%s%s\n' % (arg, paramtype, paramdoc, required,
-                                          repeated))
+      if '$ref' in paramdesc:
+        docs.append(
+            ('  %s: object, %s%s%s\n    The object takes the'
+            ' form of:\n\n%s\n\n') % (arg, paramdoc, required, repeated,
+              schema.prettyPrintByName(paramdesc['$ref'])))
+      else:
+        paramtype = paramdesc.get('type', 'string')
+        docs.append('  %s: %s, %s%s%s\n' % (arg, paramtype, paramdoc, required,
+                                            repeated))
       enum = paramdesc.get('enum', [])
       enumDesc = paramdesc.get('enumDescriptions', [])
       if enum and enumDesc:
         docs.append('    Allowed values\n')
         for (name, desc) in zip(enum, enumDesc):
           docs.append('      %s - %s\n' % (name, desc))
+    if 'response' in methodDesc:
+      docs.append('\nReturns:\n  An object of the form\n\n    ')
+      docs.append(schema.prettyPrintSchema(methodDesc['response']))
 
     setattr(method, '__doc__', ''.join(docs))
     setattr(theclass, methodName, method)
 
-  def createNextMethod(theclass, methodName, methodDesc, futureDesc):
+  def createNextMethodFromFuture(theclass, methodName, methodDesc, futureDesc):
+    """ This is a legacy method, as only Buzz and Moderator use the future.json
+    functionality for generating _next methods. It will be kept around as long
+    as those API versions are around, but no new APIs should depend upon it.
+    """
+    methodName = _fix_method_name(methodName)
     methodId = methodDesc['id'] + '.next'
 
     def methodNext(self, previous):
-      """
+      """Retrieve the next page of results.
+
       Takes a single argument, 'body', which is the results
       from the last call, and returns the next set of items
       in the collection.
 
-      Returns None if there are no more items in
-      the collection.
+      Returns:
+        None if there are no more items in the collection.
       """
       if futureDesc['type'] != 'uri':
         raise UnknownLinkType(futureDesc['type'])
@@ -402,12 +626,7 @@ def createResource(http, baseUrl, model, requestBuilder,
       except (KeyError, TypeError):
         return None
 
-      if self._developerKey:
-        parsed = list(urlparse.urlparse(url))
-        q = parse_qsl(parsed[4])
-        q.append(('key', self._developerKey))
-        parsed[4] = urllib.urlencode(q)
-        url = urlparse.urlunparse(parsed)
+      url = _add_query_parameter(url, 'key', self._developerKey)
 
       headers = {}
       headers, params, query, body = self._model.request(headers, {}, {}, None)
@@ -424,6 +643,47 @@ def createResource(http, baseUrl, model, requestBuilder,
 
     setattr(theclass, methodName, methodNext)
 
+  def createNextMethod(theclass, methodName, methodDesc, futureDesc):
+    methodName = _fix_method_name(methodName)
+    methodId = methodDesc['id'] + '.next'
+
+    def methodNext(self, previous_request, previous_response):
+      """Retrieves the next page of results.
+
+      Args:
+        previous_request: The request for the previous page.
+        previous_response: The response from the request for the previous page.
+
+      Returns:
+        A request object that you can call 'execute()' on to request the next
+        page. Returns None if there are no more items in the collection.
+      """
+      # Retrieve nextPageToken from previous_response
+      # Use as pageToken in previous_request to create new request.
+
+      if 'nextPageToken' not in previous_response:
+        return None
+
+      request = copy.copy(previous_request)
+
+      pageToken = previous_response['nextPageToken']
+      parsed = list(urlparse.urlparse(request.uri))
+      q = parse_qsl(parsed[4])
+
+      # Find and remove old 'pageToken' value from URI
+      newq = [(key, value) for (key, value) in q if key != 'pageToken']
+      newq.append(('pageToken', pageToken))
+      parsed[4] = urllib.urlencode(newq)
+      uri = urlparse.urlunparse(parsed)
+
+      request.uri = uri
+
+      logging.info('URL being requested: %s' % uri)
+
+      return request
+
+    setattr(theclass, methodName, methodNext)
+
   # Add basic methods to Resource
   if 'methods' in resourceDesc:
     for methodName, methodDesc in resourceDesc['methods'].iteritems():
@@ -437,11 +697,12 @@ def createResource(http, baseUrl, model, requestBuilder,
   if 'resources' in resourceDesc:
 
     def createResourceMethod(theclass, methodName, methodDesc, futureDesc):
+      methodName = _fix_method_name(methodName)
 
       def methodResource(self):
         return createResource(self._http, self._baseUrl, self._model,
                               self._requestBuilder, self._developerKey,
-                              methodDesc, futureDesc)
+                              methodDesc, futureDesc, schema)
 
       setattr(methodResource, '__doc__', 'A collection resource.')
       setattr(methodResource, '__is_resource__', True)
@@ -458,8 +719,24 @@ def createResource(http, baseUrl, model, requestBuilder,
   if futureDesc and 'methods' in futureDesc:
     for methodName, methodDesc in futureDesc['methods'].iteritems():
       if 'next' in methodDesc and methodName in resourceDesc['methods']:
-        createNextMethod(Resource, methodName + '_next',
+        createNextMethodFromFuture(Resource, methodName + '_next',
                          resourceDesc['methods'][methodName],
                          methodDesc['next'])
+  # Add _next() methods
+  # Look for response bodies in schema that contain nextPageToken, and methods
+  # that take a pageToken parameter.
+  if 'methods' in resourceDesc:
+    for methodName, methodDesc in resourceDesc['methods'].iteritems():
+      if 'response' in methodDesc:
+        responseSchema = methodDesc['response']
+        if '$ref' in responseSchema:
+          responseSchema = schema.get(responseSchema['$ref'])
+        hasNextPageToken = 'nextPageToken' in responseSchema.get('properties',
+                                                                 {})
+        hasPageToken = 'pageToken' in methodDesc.get('parameters', {})
+        if hasNextPageToken and hasPageToken:
+          createNextMethod(Resource, methodName + '_next',
+                           resourceDesc['methods'][methodName],
+                           methodName)
 
   return Resource()

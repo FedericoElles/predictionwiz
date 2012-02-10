@@ -20,10 +20,22 @@ credentials.
 
 __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
-import pickle
 import threading
 
+
+try:  # pragma: no cover
+  import simplejson
+except ImportError:  # pragma: no cover
+  try:
+    # Try to import from django, should work on App Engine
+    from django.utils import simplejson
+  except ImportError:
+    # Should work for Python2.6 and higher.
+    import json as simplejson
+
+
 from client import Storage as BaseStorage
+from client import Credentials
 
 
 class Storage(BaseStorage):
@@ -33,32 +45,48 @@ class Storage(BaseStorage):
     self._filename = filename
     self._lock = threading.Lock()
 
-  def get(self):
+  def acquire_lock(self):
+    """Acquires any lock necessary to access this Storage.
+
+    This lock is not reentrant."""
+    self._lock.acquire()
+
+  def release_lock(self):
+    """Release the Storage lock.
+
+    Trying to release a lock that isn't held will result in a
+    RuntimeError.
+    """
+    self._lock.release()
+
+  def locked_get(self):
     """Retrieve Credential from file.
 
     Returns:
       oauth2client.client.Credentials
     """
-    self._lock.acquire()
+    credentials = None
     try:
       f = open(self._filename, 'r')
-      credentials = pickle.loads(f.read())
+      content = f.read()
       f.close()
-      credentials.set_store(self.put)
-    except:
-      credentials = None
-    self._lock.release()
+    except IOError:
+      return credentials
+
+    try:
+      credentials = Credentials.new_from_json(content)
+      credentials.set_store(self)
+    except ValueError:
+      pass
 
     return credentials
 
-  def put(self, credentials):
-    """Write a pickled Credentials to file.
+  def locked_put(self, credentials):
+    """Write Credentials to file.
 
     Args:
       credentials: Credentials, the credentials to store.
     """
-    self._lock.acquire()
     f = open(self._filename, 'w')
-    f.write(pickle.dumps(credentials))
+    f.write(credentials.to_json())
     f.close()
-    self._lock.release()

@@ -1,7 +1,8 @@
 application: predictionwiz
-version: 1
+version: 1_4
 runtime: python
 api_version: 1
+threadsafe: false
 
 handlers:
 - url: /stylesheets
@@ -15,7 +16,7 @@ handlers:
 
 - url: /adm/.*
   script: adm.py
-  secure: always
+  secure: always  
   
 - url: /debug/.*
   script: adm.py
