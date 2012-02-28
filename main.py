@@ -89,6 +89,8 @@ class Prediction(webapp.RequestHandler):
         datafile = mydatamodel.datafile
     
     addreturn = self.request.get('addreturn','')
+    addjson = self.request.get('addjson','')
+
     if datafile and userid and post:
       #try:
       data = Predict(userid, datafile, post)
@@ -110,6 +112,9 @@ class Prediction(webapp.RequestHandler):
         self.response.out.write(self.request.get('addreturn',''))
       else:
         self.response.out.write(json.dumps(data))
+
+      if addjson:
+        self.response.out.write(addjson)
     else:
       if addreturn:
         self.response.out.write( 'error'+addreturn)

@@ -38,6 +38,8 @@ Prediction Wizard v1.4
 		<li><a href="#tabs-3">Generator</a></li>
 		<li><a href="#tabs-2">Validator</a></li>
 		<li><a href="#tabs-1">Simulator</a></li>
+		<li><a href="#tabs-5">Mass Prediction</a></li>
+
 		<li><a href="#tabs-4">About</a></li>		
 		
 	</ul>
@@ -349,6 +351,54 @@ Prediction Wizard v1.4
 -->	
 	
 	</div>
+	
+<div id="tabs-5">
+	
+<!--
+  Mass Prediction
+-->	
+<p>Predict a large data set using an input file. Predictions will be provided as an output file</p>
+<table>
+<tr>
+<td style="width:120px;">Model:</td>
+<td>
+  <select name="model" id="inp_model_mass">
+  {% for record in records %}
+	  <option value="{{record.key }}">{{ record.caption }}</option>
+  {% endfor %}
+  </select>
+</td>
+</tr>
+</table>	
+
+	<p><b>Input</b></p>
+	<textarea id="ta_mass_input" WRAP=OFF></textarea>
+	<br /><button id="btn_mass_predict">Predict</button>
+	<span id="span_mass_results_count"></span>
+	<span id="span_mass_predicted_count"></span>
+	<p><b>Output</b></p>
+	<textarea id="ta_mass_output" WRAP=OFF></textarea>
+	
+	<div id="div_mass_export_block">
+		<p><b>Export</b></p>
+		Filename: <input id="inp_mass_file" value="text.txt"><button id="btn_mass_export">Export</button>
+
+	
+	
+		<div id="div_mass_file">
+			<a target="_blank" href="" id="a_mass_file" draggable="true" data-downloadurl=""></a>
+			<p>
+				<b><span id="span_mass_file"></span></b><br/>
+				Right-click to save file or drag to desktop (when using Chrome).<br/>
+				<br/>
+			</p>
+		</div>
+	</div>	
+<!--
+  End
+-->	
+	
+	</div>	
 </div>
 
 <p class="p_grey">
@@ -371,10 +421,12 @@ $('#div_result_log').hide();
 $('#div_export').hide();
 $('#div_generator_file').hide();
 $('#div_validator_file').hide();
+$('#div_mass_file').hide();
+
 $('#div_generator_out').hide();
 $('#div_val_more_options').hide();
 $('#div_val_results').hide();
-
+$('#div_mass_export_block').hide();
 
 //
 // save values for input files in localstorage
@@ -691,6 +743,10 @@ function outputSort(a,b){
   return b.score - a.score;
 }
 
+function outputSortLabel(a,b){
+  return b.label - a.label;
+}
+
 //
 // Validator invoke
 //
@@ -939,6 +995,202 @@ $('#form_gen').submit(function() {
   return false;
 });
 
+
+// --------------- //
+// MASS PREDICTION //
+// --------------- //
+
+//
+// mass prediction drop file handle
+//
+var gfile;
+var holder = document.getElementById('ta_mass_input');
+holder.ondragover = function () { this.className = 'ta_file_hover'; return false; };
+holder.ondragend = function () { this.className = ''; return false; };
+holder.ondragleave = function () { this.className = ''; return false; };
+holder.ondrop = function (e) {
+  this.className = '';
+  e.preventDefault();
+
+  var file = e.dataTransfer.files[0], reader = new FileReader();
+  reader.onload = function (event) {
+    $('#ta_mass_input').val(event.target.result); 
+  };
+  reader.readAsText(file);
+  gfile = file;
+  file_name = file.name;
+  //add predicted suffix
+  if ((pointpos = file_name.indexOf('.'))> -1){
+    file_name = file_name.substr(0,pointpos)+'.predicted.'+file_name.substr(pointpos+1);
+  }
+  $('#inp_mass_file').val(file_name); 
+
+  return false;
+};
+
+
+//
+// mass prediction button click
+//
+var gmasspredictcounter = 0;
+var gmasspredictcounter_init = 0;
+
+var ga_mass;
+var code;
+$('#btn_mass_predict').click(function() {
+    //$('#tb_val_results').empty();
+	$('#btn_mass_predict').attr('disabled','disabled');
+	$('#div_mass_export_block').hide();
+	$('#ta_mass_output').val(''); //empty output
+	ga_mass = {};
+	
+	sImport = $('#ta_mass_input').val();
+    asRow = sImport.split("\n");
+	j=0;
+	gmasspredictcounter=0;
+	model = $('#inp_model_mass').val();
+    for (i=0;i<asRow.length;i++){
+		//each row is already input data:
+		ga_mass[i+'']={
+		  'rec':i,
+		  'data':asRow[i],
+		  'result':''
+		};
+		code = "predictMassRecord('"+model+"','"+asRow[i].replace(/'/g,"\\'")+"',"+i+");";
+		setTimeout(code,400*i);
+		j++;
+	}
+	
+    $('#span_mass_results_count').html(j + ' records loaded ');
+	gmasspredictcounter_init = j;
+	//$('#div_mass_results').show();
+	//$('#div_mass_more_options').show();
+	//$('#c').show();
+	$('#btn_mass_predict').attr('disabled','');
+});
+
+
+//
+// mass prediction one record
+//
+function predictMassRecord(model, testdata, i){
+  //$('#td_result'+i).html("Working...");
+  $.ajax({url: '/api/predict',
+	type: 'POST',
+	data: {model:model,content:testdata,addjson:'||'+i+'||'+testdata},
+	success: function(data) {
+	  gmasspredictcounter++;
+
+	  asReturn = data.split('||');
+	  txt = $('#ta_mass_output').val();
+	  if (asReturn.length == 3){
+		
+		
+		sID = asReturn[1];
+		sTestData = asReturn[2];
+		data = jQuery.parseJSON(asReturn[0]);
+		data_debug = data;
+		sPredicted = asReturn[0];
+		
+		
+		if (data.outputLabel) 
+			{sPredicted=data.outputLabel;} 
+		else 
+			{sPredicted=data.outputValue.toString(2);}
+			
+		
+		sMultiResults = '';
+		pretxt = '';
+		if (data.outputMulti){
+		  aSort = data.outputMulti.sort(outputSortLabel);
+		
+		  //print header if record 0
+		  if (sID=="0"){
+		    pretxt = 'Result,';
+		    for (i=0;i<aSort.length;i++){
+		      pretxt += aSort[i].label +',';
+		    }
+		    pretxt += 'Testdata\n';
+		  } 
+		  
+		  for (i=0;i<aSort.length;i++){
+		    sMultiResults += aSort[i].score +',';
+		  }
+		  
+		  ga_mass[sID].multi = aSort; //save multi in global object
+
+		}
+		
+		
+		
+		//add " if not a number
+		if (isNaN(parseInt(sPredicted))){
+		  sPredicted = '"'+sPredicted+'"';
+		}
+		ga_mass[sID].result = sPredicted;
+	    $('#ta_mass_output').val(txt+pretxt+sPredicted+','+sMultiResults+sTestData+'\n');
+
+		//feed counter
+		$('#span_mass_predicted_count').html('- '+gmasspredictcounter+ ' records predicted');
+	
+		
+		
+	  } else {
+		 $('#ta_mass_output').val(txt+asReturn+'\n');
+	  }			
+	  if (gmasspredictcounter_init == gmasspredictcounter){
+		$('#div_mass_export_block').show();
+	  }	  
+	},
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+	  txt = $('#ta_mass_output').val();
+  	  gmasspredictcounter++;
+	  $('#ta_mass_output').val(txt+'\n'+textStatus);
+	}	
+  });
+}
+
+$('#btn_mass_export').click(function(){
+  html = 'Result,';
+
+  l = 0;
+  for (x in ga_mass){
+    rec = ga_mass[x];
+    rec_multi = '';
+    if (typeof rec.multi !== 'undefined'){
+      if (l==0){
+	    for (i=0,ii=rec.multi.length;i<ii;i++){
+	      html += rec.multi[i].label +',';
+	    }
+	    html += 'Inputdata\n';
+	    l = 1;
+	  }
+	  //loop scores
+	  for (i=0,ii=rec.multi.length;i<ii;i++){
+	    rec_multi += rec.multi[i].score +',';
+	  }
+	}
+	html += rec.result+','+rec_multi+rec.data+'\n';
+  }
+  provideDownload('#inp_mass_file','mass', html);
+});
+
+
+//
+// generator download result file
+// via http://www.thecssninja.com/javascript/gmail-dragout
+//
+var file3 = document.getElementById("a_mass_file");
+
+file3.addEventListener("dragstart",function(evt){
+    evt.dataTransfer.setData("DownloadURL",file3.getAttribute("data-downloadurl"));
+},false);
+
+// ----- //
+// OTHER //
+// ----- //
+
+
 //
 // Text area hints
 //
@@ -960,6 +1212,7 @@ $('#form_gen').submit(function() {
 
  ta_hint('ta_generator_in', 'Select cells to use, copy and paste here.');
  ta_hint('ta_validator', 'Paste file content here (or drop file when using Chrome).');
+ ta_hint('ta_mass_input', 'Paste file content here (or drop file when using Chrome).');
 
 //
 // H1 Link
