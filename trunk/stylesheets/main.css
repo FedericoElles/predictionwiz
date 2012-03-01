@@ -106,7 +106,7 @@ h1{
  width:100%;
 }
 
-#a_generator_file, #a_validator_file{
+#a_generator_file, #a_validator_file, #a_mass_file{
  display:block;
  float:left;
  height:80px;
@@ -121,5 +121,13 @@ h1{
 }
 
 #a_generator_file:hover{
+ border: 1px solid blue;
+}
+
+#a_validator_file:hover{
+ border: 1px solid blue;
+}
+
+#a_mass_file:hover{
  border: 1px solid blue;
 }
