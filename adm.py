@@ -268,7 +268,7 @@ def Training(userid, action, model):
     if (action == 'get'):
       start = train.get(id=model).execute()
     if (action == 'insert'):
-      body = {'storageDataLocation' : model}
+      body = {'storageDataLocation' : model, 'id' : model}
       start = train.insert(body=body).execute()
     return start
   except AccessTokenRefreshError:
@@ -320,7 +320,9 @@ def GetPostDataOld(query):
 class oStorageAPICheck(webapp.RequestHandler):
   def get(self):
     filename = self.request.get('filename') or 'api.txt'
-    filename = '/gs/wiz/'+filename
+    bucket = self.request.get('bucket') or 'pwiz'
+ 
+    filename = '/gs/'+bucket+'/'+filename
     writable_file_name = files.gs.create(filename, mime_type='text/plain')
     with files.open(writable_file_name, 'a') as f:
       f.write('Hello World!')
