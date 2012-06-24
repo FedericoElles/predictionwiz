@@ -115,6 +115,7 @@ class AdmNewModel(webapp.RequestHandler):
       bucket = cgi.escape(self.request.get('bucket','')).strip()  
       caption = cgi.escape(self.request.get('caption','')).strip()
       public = cgi.escape(self.request.get('public','')).strip()
+
       if caption == '':
         caption = datafile
       if public == 'on':
@@ -137,6 +138,11 @@ class AdmDeleteModel(webapp.RequestHandler):
     user = users.get_current_user()
     if user:    
       key = cgi.escape(self.request.get('key',''))
+      datafile = DataModel().getdatafile(key)
+      try:
+        Delete(user.user_id(),datafile)
+      except:
+        modelnotfound = True
       DataModel().drop(key)
       self.redirect("/adm/")      
 
@@ -148,7 +154,18 @@ class AdmTrain(webapp.RequestHandler):
     user = users.get_current_user()
     if user:      
       datafile = cgi.escape(self.request.get('datafile'))
-      html = json.dumps(Training(user.user_id(),'insert',datafile))
+      utility = cgi.escape(self.request.get('utility'))
+      key = cgi.escape(self.request.get('key',''))
+
+      html, utilityOutput = Training(user.user_id(),'insert',datafile,utility)
+     
+      #save utility
+      if utilityOutput: #False on error
+        html['utility'] = DataModel().setUtility(key,utility)
+      else:
+        DataModel().setUtility(key,'None')
+        html['utility'] = 'Utility set to None'
+      html = json.dumps(html)  
       self.response.out.write (html)
 
 #
@@ -159,9 +176,49 @@ class AdmTrainStatus(webapp.RequestHandler):
     user = users.get_current_user()
     if user:      
       datafile = cgi.escape(self.request.get('datafile'))
-      html = json.dumps(Training(user.user_id(),'get',datafile))
+      html, utilityOutput = Training(user.user_id(),'get',datafile,'')
+      html = json.dumps(html)
       self.response.out.write (html)
 
+
+
+#
+#Sync Models in db with server
+#
+
+class AdmList(webapp.RequestHandler):
+  def post(self):
+    user = users.get_current_user()
+    if user:          
+      modelList = ModelList(user.user_id())
+      html = json.dumps(modelList)
+      html = str(len(modelList['items']))
+      DMs = DataModel().getmy().run(batch_size=1000)
+      myList = []
+      myListMap = {}
+      for dm in DMs:
+        myList.append(dm)
+        myListMap[dm.datafile] = True
+
+      #check what available
+      notavailable = 0
+      for model in modelList['items']:
+        try:
+          temp = myListMap[model['id']]
+          #model available
+        except:
+          #model not available
+          ###self.response.out.write(model['id'])
+          aData = model['id'].split('/')
+          if len(aData) == 2:
+            newmodelkey = DataModel().save(aData[0],aData[1],aData[1],False)
+          ###self.response.out.write(newmodelkey + '<br>')          
+          notavailable += 1
+      html2 = str(len(myList))
+      ###self.response.out.write (html + '-' + html2 + ':' + str(notavailable))
+      self.redirect("/adm/")
+  def get(self):
+    self.post()
 
 
 # ----------
@@ -255,26 +312,50 @@ class oAuthCheck2(webapp.RequestHandler):
 
 #
 # Ask for training status
-# New API DOC: http://api-python-client-doc.appspot.com/prediction/v1.4/trainedmodels
+# New API DOC: http://api-python-client-doc.appspot.com/prediction/v1.5/trainedmodels
 #
-def Training(userid, action, model):
-  try:  
+def Training(userid, action, model, utility):
+  try:
+    utilityOutput = ''
+
     credentials = StorageByKeyName(
       Credentials, userid, 'credentials').get()
     http = httplib2.Http()
     http = credentials.authorize(http)
-    service = build("prediction", "v1.4", http=http)
+    service = build("prediction", "v1.5", http=http)
     train = service.trainedmodels()
     if (action == 'get'):
       start = train.get(id=model).execute()
     if (action == 'insert'):
-      body = {'storageDataLocation' : model, 'id' : model}
+      #utility = 'French:5\nEnglish:10'
+      oUtility = []
+      if utility == 'None':
+        utility = False
+      if utility:
+        aUtility = utility.split('\n')
+        utilityOutput = "Records: " + str(len(aUtility))
+        for rec in aUtility:
+          aRec = rec.split(':')
+          if len(aRec) == 2:
+            try:
+              nRecVal =  float(aRec[1])
+              oUtility.append({aRec[0]:nRecVal})
+              utilityOutput += aRec[0]+':'+nRecVal + '\n'
+            except:
+              nRecVal = 0
+          #else:
+          #  utilityOutput += '\nrec split returned ' + len(aRec) + 'values'
+
+            
+            
+        
+      body = {'storageDataLocation' : model, 'id' : model, 'utility':  oUtility}
       start = train.insert(body=body).execute()
-    return start
+    return start, utilityOutput
   except AccessTokenRefreshError:
-    return {"error":{"message":"The credentials have been revoked or expired, please re-run the application to re-authorize"}}
+    return {"error":{"message":"The credentials have been revoked or expired, please re-run the application to re-authorize"}}, False
   except HTTPError,e:
-    return json.loads(e.content) 
+    return json.loads(e.content), False
 
   
 
@@ -286,12 +367,46 @@ def Predict(userid, model, query):
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.4", http=http)
+  service = build("prediction", "v1.5", http=http)
   train = service.trainedmodels()
   body = {'input': {'csvInstance': query.split(',')}}
   prediction = train.predict(body=body, id=model).execute()
 
   return prediction
+
+
+#
+# Delete model
+#
+def Delete(userid, model):
+  credentials = StorageByKeyName(
+    Credentials, userid, 'credentials').get()
+  http = httplib2.Http()
+  http = credentials.authorize(http)
+  service = build("prediction", "v1.5", http=http)
+  train = service.trainedmodels()
+  #body = {'id' : model}
+  train.delete( id= model).execute()
+
+  return True
+
+
+# 
+# Get List
+#
+def ModelList(userid):
+  credentials = StorageByKeyName(
+    Credentials, userid, 'credentials').get()
+  http = httplib2.Http()
+  http = credentials.authorize(http)
+  service = build("prediction", "v1.5", http=http)
+  train = service.trainedmodels()
+  
+  mList = train.list().execute()
+
+  return mList
+
+
 
 
 def GetPostData(query):
@@ -333,7 +448,8 @@ class oStorageAPICheck(webapp.RequestHandler):
 
 
 application = webapp.WSGIApplication([
-            ('/adm/', MainPage),                     
+            ('/adm/', MainPage),
+            ('/adm/sync', AdmList),  
             ('/adm/exit', Logout),            
             ('/adm/new', AdmNewModel),
             ('/adm/delete', AdmDeleteModel),            
