@@ -28,7 +28,7 @@
 
 <h1 title="Home">
 <img src="/stylesheets/logo.png">
-Prediction Wizard Admin v1.4
+Prediction Wizard Admin v1.5
 </h1>
 
 <div id="tabs">
@@ -50,9 +50,10 @@ Prediction Wizard Admin v1.4
 <tr>
 
 <th style="width:15%">Datafile</th>
-<th style="width:20%">Caption</th>
-<th style="width:20%">Action</th>
-<th style="width:35%">Result</th>
+<th style="width:15%">Caption</th>
+<th style="width:20%">Utility</th>
+<th style="width:15%">Action</th>
+<th style="width:25%">Result</th>
 <th style="width:5%">Delete</th>
 <th style="width:5%">Public</th>
 </tr>
@@ -60,6 +61,7 @@ Prediction Wizard Admin v1.4
 	<tr>
 	  <td>{{ record.datafile }}</td>
 	  <td>{{ record.caption }}</td>
+	  <td><span id="span_{{ record.key }}">{{ record.utility }}<br><a class="a_utility" tid="{{ record.key }}" href="#">edit</a></span> <textarea class="ta_utility" id="ta_{{ record.key }}">{{ record.utility }}</textarea></td>
 	  <td>
 	    <button id="btn_train_{{ record.key }}" onClick="action('{{ record.key }}','train','{{ record.datafile }}')">Train</button>
 		<span title="Since start of training." id="span_train_{{ record.key }}"></span>
@@ -126,6 +128,15 @@ Prediction Wizard Admin v1.4
   <p><b>Hint:</b> Hello World training file: <a href="http://code.google.com/apis/predict/docs/language_id.txt">language_id.txt</a></p>
 </form>
 
+<hr>
+
+Synchronize Prediction Models with local DB. Only possible of models have been created with the PredictionWiz or the model.id equals the model.storageDataLocation.
+
+<form action="/adm/sync">
+<input type="submit" value="Sync" />
+</form>
+
+
 <!--
   End
 -->
@@ -155,6 +166,17 @@ Prediction Wizard Admin v1.4
 //
 var $tabs = $( "#tabs" ).tabs();
 
+$('.ta_utility').hide();
+
+$('.a_utility').click(function(e){
+  e.preventDefault();
+  var tid = $(this).attr('tid');
+  if ($('#ta_'+tid).val() == 'None'){
+    $('#ta_'+tid).val('Use format:\nName:Number\nEnglish:123');
+  }
+  $('#ta_'+tid).show();
+  $('#span_'+tid).hide();
+});
 
 // ----- //
 // Setup //
@@ -225,10 +247,11 @@ var data_debug = {};
 function action(key, urlsuffix, datafile){
   $('#result_'+key).html("Working...");
   $('#btn_'+urlsuffix+'_'+key).attr('disabled','disabled');
+  var utility = $('#ta_'+key).val();
   $.ajax({url: '/adm/api/'+urlsuffix,
     dataType: $('#datatype').val(),
 	type: 'POST',
-    data: {datafile: datafile},
+    data: {datafile: datafile, key:key, utility : utility},
 	success: function(data) {
 	  data_debug = data;
       if ($('#datatype').val() == 'json'){

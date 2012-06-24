@@ -23,6 +23,7 @@ class DataModel(db.Model):
   caption = db.StringProperty()
   date = db.DateTimeProperty(auto_now_add=True)
   public = db.BooleanProperty(default=False)
+  utility = db.TextProperty()
 
   def save(self,bucket,datafile,caption,public):
     model = DataModel()
@@ -30,8 +31,20 @@ class DataModel(db.Model):
     model.caption = caption
     model.public = public
     model.userhash = getUserHash()
+   
     model.put()
     return str(model.key())
+
+  def setUtility(self,key,utility):
+    model = self.get(key)
+    if model:
+      if model.userhash == getUserHash():
+        model.utility = utility
+        model.put()
+        return utility
+      return 'ERR: User not matching'
+    return 'ERR: Model not found by key'
+      
 
   def drop(self,key):
     model = self.get(key)
