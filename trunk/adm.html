@@ -269,7 +269,11 @@ function action(key, urlsuffix, datafile){
 							html = 'MSE: ' + data.modelInfo.meanSquaredError + ' - ' + data.trainingStatus;
 						}
 						if (data.modelInfo.modelType == 'classification'){
-							html = 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
+							html = '';
+							if (data.modelInfo.classWeightedAccuracy){
+								html+='Weighted ACY: ' +data.modelInfo.classWeightedAccuracy +'<br>';
+							}
+							html += 'ACY: ' + data.modelInfo.classificationAccuracy + ' - ' + data.trainingStatus;
 						}
 						if (data.modelInfo.numberInstances == '0'){
 							html = 'ERROR: Number of valid data instances used in the trained model = 0';
