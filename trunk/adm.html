@@ -295,6 +295,7 @@ function action(key, urlsuffix, datafile){
 	    html = data;
 	  }
 	  $('#result_'+key).html(html); 
+	  setStats(key,html)
 	  $('#btn_'+urlsuffix+'_'+key).attr('disabled','');
     },
 	error: function(XMLHttpRequest, textStatus, errorThrown) {
@@ -313,11 +314,33 @@ function action(key, urlsuffix, datafile){
   });
 }
 
+
+//
+// LOCALSTORAGE FOR RESULTS
+//
+var getStats = function(model){
+  stats = localStorage.getItem("model_"+model)
+  if (typeof stats  == "undefined"){
+    return false
+  } 
+  return stats
+}
+
+var setStats = function(model,data){
+  localStorage.setItem("model_"+model,data);
+}
+
+
 //
 // Initial Training Status Check
 //
 {% for record in records %}
- action('{{ record.key }}','trainstatus','{{ record.datafile }}');
+
+if (!getStats('{{ record.key }}')){
+  action('{{ record.key }}','trainstatus','{{ record.datafile }}');
+} else {
+  $('#result_{{ record.key }}').html(getStats('{{ record.key }}')); 
+}
 {% endfor %}
 
 
@@ -356,6 +379,7 @@ $(function() {
     }
   });
 });
+
 
 //
 // H1 Link

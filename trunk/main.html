@@ -39,7 +39,7 @@ Prediction Wizard v1.5
 		<li><a href="#tabs-2">Validator</a></li>
 		<li><a href="#tabs-1">Simulator</a></li>
 		<li><a href="#tabs-5">Mass Prediction</a></li>
-
+        <li><a href="#tabs-6">Learn</a></li>
 		<li><a href="#tabs-4">About</a></li>		
 		
 	</ul>
@@ -81,6 +81,19 @@ Prediction Wizard v1.5
 <td>
   <div id="div_result">No predictions done yet</div>
 </td>
+</tr><tr id="tr_correction"> 
+<td>Correction:</td>
+<td>
+  <div id=div_quick_answer>
+    One-Click-Correction&#8482;:<br>
+	<div id=div_quick_buttons></div>
+	<hr>
+  </div>
+  Correct answer:
+  <select id="sel_answer">
+  </select>
+  <button id="btn_correct">Save</button><span id="span_correct_result"></span>
+</td>
 </tr>
 </table>
 </form>
@@ -100,13 +113,74 @@ Prediction Wizard v1.5
 </div>
 {% if user %}
 <hr>
-<p> GET API: /api/predict?model=<span id="span_sim_model_key"></span>&content=[query] - returns result as single string</p>
+<p> GET API:<br>
+  /api/predict?model=<span class="span_sim_model_key"></span>&content=[query] - returns result as single string
+</p>
+<p><a target="_blank" id="a_demo" href="#">Demo page</a></p>
+
 {% endif %}
 <!--
   End
 -->
 	
 	</div>
+	<div id="tabs-6">
+
+<!--
+  Learn
+-->
+<form id="form_learn">
+<table>
+<p>Add data rows to a prediction model.</p>
+<tr>
+<td style="width:120px;">Model:</td>
+<td>
+  <select name="model" id="inp_model_learn">
+  {% for record in records %}
+	  <option value="{{record.key }}">{{ record.caption }}</option>
+  {% endfor %}
+  </select>
+</td>
+</tr><tr> 
+<td>Learning data:</td>
+<td>
+  <textarea style="width:100%" type="text" name="content" id="inp_content_learn" >correct-answer,data1,data2,data3...</textarea>
+</td>  
+</tr><tr> 
+<td></td>
+<td><input type="submit" value="Learn"/></td>
+</tr><tr> 
+<td>Result:</td>
+<td>
+  <div id="div_result_learn">No learning done yet</div>
+</td>
+</tr>
+</table>
+</form>
+
+<div id="div_result_log_learn">
+<br />
+<hr>
+<h3>Learning Log</h3>
+<table id="tbl_result_log_learn">
+<tr>
+  <th>Learning data</th>
+  <th style="width:200px;">Result</th>
+</tr>
+<tbody id="tb_result_log_learn">
+</tbody>
+</table>
+</div>
+{% if user %}
+<hr>
+<p> GET API:<br>
+/api/learn?model=<span class="span_sim_model_key"></span>&content=[query]&answer=[correct-answer] - adds a single data row to the prediction model. Changes might not incorporate directly.</p>
+{% endif %}
+<!--
+  End
+-->
+	
+	</div>	
 	<div id="tabs-2">
 	
 <!--
@@ -272,6 +346,7 @@ Prediction Wizard v1.5
 	<div id="div_generator_out">
 	  <b>Output</b><br />
 	  <textarea id="ta_generator_out"></textarea>	
+	  <button id="btn_load_learn">Load in Learn tab</button> Update existing model with this data
 	</div>
 	
 	<!-- show only after successful upload -->
@@ -307,7 +382,7 @@ Prediction Wizard v1.5
 <!--
   About
 -->
-	<p>Prediction Wizard - A GUI for the <a href="http://code.google.com/apis/predict/">Google Prediction API v1.2</a></p>	
+	<p>Prediction Wizard - A GUI for the <a href="http://code.google.com/apis/predict/">Google Prediction API</a></p>	
 
 <table>
 <tr>
@@ -427,6 +502,9 @@ $('#div_generator_out').hide();
 $('#div_val_more_options').hide();
 $('#div_val_results').hide();
 $('#div_mass_export_block').hide();
+
+$('#div_result_log_learn').hide();
+$('#tr_correction').hide()  
 
 //
 // save values for input files in localstorage
@@ -933,20 +1011,25 @@ holder.ondrop = function (e) {
 // --------- //
 
 $('#inp_model').change(function(){
-  $('#span_sim_model_key').html($(this).val());
+  try{
+  $('.span_sim_model_key').html($(this).val());
+  $('#a_demo').attr('href','/demo/'+$(this).val()+'/'+$('#inp_model option:selected').html())
+  } catch(e){}
 });
-
+$('#inp_model').change()
 //
 // Predict button handler
 //
 $('#form_gen').submit(function() {
   $('#div_result').html("Working...");
+  $('#span_correct_result').html('')
   $.ajax({url: '/api/predict',
     dataType: $('#datatype').val(),
 	type: 'POST',
     data: $('form').serialize(),
 	success: function(data) {
 	  data_debug = data;
+	  $('#tr_correction').hide()  
 	  if ($('#datatype').val() == 'json'){
 	    html = '<b>';
 		if (data.outputLabel) 
@@ -959,6 +1042,35 @@ $('#form_gen').submit(function() {
 		
 		try {
 			if (data.outputMulti){
+			    $('#tr_correction').show()
+				var $sel = $('#sel_answer')
+				var $quick = $('#div_quick_answer')
+				var $quickButtons = $('#div_quick_buttons')
+				$quickButtons.html('')
+				var bQuick = false
+				$quick.hide()
+				$sel.html('<option></option>')
+				if (data.outputMulti.length < 11){
+					$quick.show()
+					bQuick = true
+				}
+				for (i=0;i<data.outputMulti.length;i++){
+					$sel.append('<option value="'+data.outputMulti[i].label+'">'+data.outputMulti[i].label+'</option>')
+					if (bQuick){
+					  $quickButtons.append('<button class=btn_quick_correction value="'+data.outputMulti[i].label+'">'+data.outputMulti[i].label+'</button>')
+					}
+				}
+				
+				if (bQuick){	
+					// Prediction Correction
+					$('.btn_quick_correction').click(function(event){
+					  event.preventDefault();
+					  var val = $(this).attr('value')
+					  $('#sel_answer').val(val)
+					  $('#btn_correct').click()
+					})
+				}	
+				
 				aSort = data.outputMulti.sort(outputSort);
 		
 				//show only second and third best reults
@@ -984,7 +1096,7 @@ $('#form_gen').submit(function() {
       $('#tb_result_log').prepend('<tr"><td>' + $('#inp_content').val() + '</td><td>' +  $('#div_result').html() + '</td></tr>');
 
 	  // update API
-	  $('#span_sim_model_key').html($('#inp_model').val());
+	  $('.span_sim_model_key').html($('#inp_model').val());
 	  
       
     },
@@ -994,6 +1106,97 @@ $('#form_gen').submit(function() {
   });
   return false;
 });
+
+
+
+$('#btn_correct').click(function(event){
+  event.preventDefault();
+  $('#span_correct_result').html('Working...');
+  var data = {}
+  data.model = $('#inp_model').val()
+  data.answer = $('#sel_answer').val()
+  data.content = $('#inp_content').val()
+  $(this).attr('disabled',true)
+  $.ajax({url: '/api/learn',
+	type: 'GET',
+    data: data,
+	success: function(data) {
+	  data_debug = data;
+	  if (data == 'prediction#training') data = "Submitted"
+      $('#span_correct_result').html(data);
+  	  $('#btn_correct').attr('disabled',false)
+      
+    },
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+      $('#span_correct_result').html(textStatus);
+	  $('#btn_correct').attr('disabled',false)
+    }	
+  });  
+})
+
+// ----- //
+// Learn //
+// ----- //
+
+//
+// Predict button handler
+//
+var aRecs
+var iRec = 0
+var iRecMax = 0
+$('#form_learn').submit(function() {
+  $('#div_result_learn').html("Working...");
+  aRecs = $('#inp_content_learn').val().split('\n')
+  iRecMax = 0
+  iRec = 0
+  for (i=0;i<aRecs.length;i++){  
+	  var data = {}
+	  data.model = $('#inp_model_learn').val()
+	  var a = aRecs[i].split(',')
+	  if (a.length < 2){
+		$('#div_result_learn').html("Learning data must have at least two values seperated by comma");
+		aRecs.splice(i,1) 
+		i--
+	  } else {
+	      iRecMax++
+		  data.answer = a.shift()
+		  data.content = a.join(',')
+		  $.ajax({url: '/api/learn',
+			type: 'GET',
+			data: data,
+			success: function(data) {
+			  data_debug = data;
+
+			  $('#div_result_learn').html(data);
+		  
+			  //write log
+			  $('#div_result_log_learn:hidden').show();
+			  $('#tb_result_log_learn').prepend('<tr"><td>' + aRecs[iRec] + '</td><td>' +  data + '</td></tr>');
+			  iRec++
+			  
+			  if (iRecMax == iRec) $('#div_result_learn').html('Done.')
+			  
+			},
+			error: function(XMLHttpRequest, textStatus, errorThrown) {
+			  $('#div_result_learn').html(textStatus);
+			   //write log
+			  $('#div_result_log_learn:hidden').show();
+			  $('#tb_result_log_learn').prepend('<tr"><td>' + aRecs[iRec] + '</td><td>' +  textStatus + '</td></tr>');
+			  iRec++
+			}	
+		  });
+	  }
+  }  
+  // update API
+  $('.span_sim_model_key').html($('#inp_model').val());
+  return false;
+});
+
+// FILL LEARN INPUT WITH GENERATOR OUTPUT
+$('#btn_load_learn').click(function(){
+  $('#inp_content_learn').val($('#ta_generator_out').val())
+  $("#tabs").tabs('select',4);
+})
 
 
 // --------------- //

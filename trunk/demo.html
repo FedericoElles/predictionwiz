@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<!--
+ This code was created by Federico Elles which
+ can be found at http://code.google.com/p/predictionwiz/
+ 
+ Please let me know about errors and improvements via info@3x3Links.com or the link above.
+-->
+<html>
+<head>
+	<meta charset=utf-8 />
+	<title>Prediction Demo</title>
+	<link rel="shortcut icon" href="/stylesheets/favicon.png" />
+	<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+	<!--[if IE]>
+		<script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->		
+</head>
+<body>
+
+<style>
+body{
+   font-family:Arial,sans-serif;
+   font-size:12px;
+}
+
+h1,h2,h3{
+  font-size:110%;
+}
+
+h1{
+  font-size:120%;
+}
+
+h3{
+  margin-bottom:1px;
+}
+#div_result{
+   font-size:120%;
+}
+
+#inp_content{
+  width:100%;
+}
+.span_pos1{
+  color:#555;
+}
+
+.span_pos2{
+  color:#AAA;
+}
+
+.tbl_results {
+ width:100%;
+}
+
+.tbl_results td{
+ border: 1px solid #E0EDFE;
+ border-width: 1px 0px 0px 0px;
+ overflow:hidden;
+ height:20px;
+}
+
+.tbl_results th{
+ text-align:left;
+}
+</style>
+
+<h1>{{ title }}</h1>
+
+<form id="form_gen">
+<input type=hidden name="model" id="inp_model" value="{{model}}" />
+
+<h3>Input data:</h3>
+<input type="text" name="content" id="inp_content" value="" />
+<input type="submit" value="Predict"/>
+<h3>Result:</h3>
+<p>
+  <span id="div_result">No predictions done yet</span>
+  <a id="a_correct" href="#">Prediction wrong?</a>  
+</p>
+  
+  <div id="div_correction"> 
+<h3>Result correction:</h3>
+  <div id=div_quick_answer>
+    One-Click-Correction&#8482;:<br>
+	<div id=div_quick_buttons></div>
+	<hr>
+  </div>
+  Correct answer:
+  <select id="sel_answer">
+  </select>
+  <button id="btn_correct">Save</button><span id="span_correct_result"></span>
+  </div>
+</form>
+
+
+<a id="a_log" href="#">Result log</a>  
+
+
+<div id="div_result_log">
+<h3>Result Log</h3>
+<table class="tbl_results">
+<tr>
+  <th>Input data</th>
+  <th style="width:200px;">Result</th>
+</tr>
+<tbody id="tb_result_log">
+</tbody>
+</table>
+</div>
+{% if user %}
+<hr>
+<p> GET API:<br>
+/api/predict?model=<span class="span_sim_model_key"></span>&content=[query] - returns result as single string</p>
+{% endif %}
+<!--
+  End
+-->
+
+
+</body>
+
+
+<script type="text/javascript">
+//
+// Enable Tabs
+//
+
+$('#div_result_log').hide();
+
+$('#div_result_log_learn').hide();
+$('#div_correction, #a_correct, #a_log').hide()  
+
+
+
+// --------- //
+// Simulator //
+// --------- //
+
+
+//
+// Predict button handler
+//
+$('#form_gen').submit(function() {
+  $('#div_result').html("Working...");
+  $('#span_correct_result').html('')
+  $.ajax({url: '/api/predict',
+    dataType: 'json',
+	type: 'POST',
+    data: $('form').serialize(),
+	success: function(data) {
+	  data_debug = data;
+	  $('#div_correction, #a_correct').hide()  
+	    html = '<b>';
+		if (data.outputLabel) 
+			{html+=data.outputLabel;} 
+		else 
+			{html+=data.outputValue.toString(2);}
+		
+		html +='</b>';
+		j=0;
+		
+		try {
+			if (data.outputMulti){
+			    $('#a_correct').show()
+				var $sel = $('#sel_answer')
+				var $quick = $('#div_quick_answer')
+				var $quickButtons = $('#div_quick_buttons')
+				$quickButtons.html('')
+				var bQuick = false
+				$quick.hide()
+				$sel.html('<option></option>')
+				if (data.outputMulti.length < 11){
+					$quick.show()
+					bQuick = true
+				}
+				for (i=0;i<data.outputMulti.length;i++){
+					$sel.append('<option value="'+data.outputMulti[i].label+'">'+data.outputMulti[i].label+'</option>')
+					if (bQuick){
+					  $quickButtons.append('<button class=btn_quick_correction value="'+data.outputMulti[i].label+'">'+data.outputMulti[i].label+'</button>')
+					}
+				}
+				
+				if (bQuick){	
+					// Prediction Correction
+					$('.btn_quick_correction').click(function(event){
+					  event.preventDefault();
+					  var val = $(this).attr('value')
+					  $('#sel_answer').val(val)
+					  $('#btn_correct').click()
+					})
+				}	
+				
+				aSort = data.outputMulti.sort(outputSort);
+		
+				//show only second and third best reults
+				for (i=0;i<aSort.length;i++){
+				if  (j < 3 && j > 0){
+					html += ' <span class="span_pos'+j+'">['+aSort[i].label+']</span>';
+				}
+				j++;
+			}
+		  }
+		} catch (e){
+		  html = data;
+		}
+
+
+  
+      $('#div_result').html(html);
+  
+      //write log
+	  
+	  $('#a_log').show();
+      $('#tb_result_log').prepend('<tr"><td>' + $('#inp_content').val() + '</td><td>' +  $('#div_result').html() + '</td></tr>');
+
+	  // update API
+	  $('.span_sim_model_key').html($('#inp_model').val());
+	  
+      
+    },
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+      $('#div_result').html(textStatus);
+    }	
+  });
+  return false;
+});
+
+
+$('#a_correct').click(function(){
+  $(this).hide()
+  $('#div_correction').show()
+})
+
+
+$('#a_log').click(function(){
+  $(this).hide()
+  $('#div_result_log').show()
+})
+
+
+//
+//needed for sorting multi ouput result
+//
+function outputSort(a,b){
+  return b.score - a.score;
+}
+
+function outputSortLabel(a,b){
+  return b.label - a.label;
+}
+
+
+$('#btn_correct').click(function(event){
+  event.preventDefault();
+  $('#span_correct_result').html('Working...');
+  var data = {}
+  data.model = $('#inp_model').val()
+  data.answer = $('#sel_answer').val()
+  data.content = $('#inp_content').val()
+  $(this).attr('disabled',true)
+  $.ajax({url: '/api/learn',
+	type: 'GET',
+    data: data,
+	success: function(data) {
+	  data_debug = data;
+	  if (data == 'prediction#training') data = "Submitted"
+      $('#span_correct_result').html(data);
+  	  $('#btn_correct').attr('disabled',false)
+      
+    },
+	error: function(XMLHttpRequest, textStatus, errorThrown) {
+      $('#span_correct_result').html(textStatus);
+	  $('#btn_correct').attr('disabled',false)
+    }	
+  });  
+})
+
+// ----- //
+// OTHER //
+// ----- //
+
+
+//
+// Text area hints
+//
+
+ function ta_hint(id, text){
+   $('#'+id).val(text);
+   $('#'+id).focus(function(e) {
+     if($('#'+id).val() == text) {
+      $('#'+id).val("");
+     }
+   });
+ 
+    $('#'+id).blur(function(e) {
+     if($('#'+id).val() == "") {
+       $('#'+id).val(text);
+     }
+   });
+ }
+
+ ta_hint('ta_generator_in', 'Select cells to use, copy and paste here.');
+ ta_hint('ta_validator', 'Paste file content here (or drop file when using Chrome).');
+ ta_hint('ta_mass_input', 'Paste file content here (or drop file when using Chrome).');
+
+//
+// H1 Link
+//
+
+$('h1').html(unescape($('h1').html()))
+ 
+//
+// Show AJAX Error
+//
+function help_error(xhr, settings, exception){
+  alert('error in: ' + xhr.statusText + ' \\n'+'response:\\n' + xhr.responseText.substr(1,1000) + ' \\n'+'uri:\\n' + settings.uri);
+}
+
+</script>
+
+</html>

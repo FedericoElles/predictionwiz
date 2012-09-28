@@ -67,7 +67,6 @@ class Credentials(db.Model):
 
 from data import DataModel, ApiKey, getUserHash
 
-
 #storage api
 try:
   files.gs
@@ -88,7 +87,11 @@ except AttributeError:
 
 
 #prediction wiz
-
+def onlyAdmins():
+  try:
+    return getConfig('admin_only')
+  except:
+    return false
 
 def writeTemplate(self, name, template_values):
   path = os.path.join(os.path.dirname(__file__), name)
@@ -230,26 +233,30 @@ class MainPage(webapp.RequestHandler):
   def get(self):
     user = users.get_current_user()
     if user:      
+      if (onlyAdmins() and users.is_current_user_admin()) or not onlyAdmins(): 
+
       
-      credentials = StorageByKeyName(
-          Credentials, user.user_id(), 'credentials').get()
+        credentials = StorageByKeyName(
+            Credentials, user.user_id(), 'credentials').get()
 
-      if credentials is None or credentials.invalid == True:
-        flow = OAuth2WebServerFlow(
-            client_id = getConfig('client_id'), 
-            client_secret = getConfig('client_secret'),
-            scope='https://www.googleapis.com/auth/prediction',
-            user_agent='predictionwiz/1.4',
-            domain='anonymous',
-            xoauth_displayname='Prediction Wizard')
+        if credentials is None or credentials.invalid == True:
+          flow = OAuth2WebServerFlow(
+              client_id = getConfig('client_id'), 
+              client_secret = getConfig('client_secret'),
+              scope='https://www.googleapis.com/auth/prediction',
+              user_agent='predictionwiz/1.4',
+              domain='anonymous',
+              xoauth_displayname='Prediction Wizard')
 
-        callback = self.request.relative_url('/adm/auth')
-        authorize_url = flow.step1_get_authorize_url(callback)
-        memcache.set(user.user_id(), pickle.dumps(flow))
-        self.redirect(authorize_url)
+          callback = self.request.relative_url('/adm/auth')
+          authorize_url = flow.step1_get_authorize_url(callback)
+          memcache.set(user.user_id(), pickle.dumps(flow))
+          self.redirect(authorize_url)
+        else:
+          template_values = {'records':DataModel().getmy()}
+          writeTemplate(self, 'adm.html', template_values)
       else:
-        template_values = {'records':DataModel().getmy()}
-        writeTemplate(self, 'adm.html', template_values)
+          self.redirect(users.create_logout_url("/"))
 
     else:
       self.redirect(users.create_login_url(self.request.uri))  
@@ -374,6 +381,23 @@ def Predict(userid, model, query):
 
   return prediction
 
+
+
+
+#
+# Learn something
+#
+def Learn(userid, model, query, answer):
+  credentials = StorageByKeyName(
+    Credentials, userid, 'credentials').get()
+  http = httplib2.Http()
+  http = credentials.authorize(http)
+  service = build("prediction", "v1.5", http=http)
+  train = service.trainedmodels()
+  body = {'label': answer ,'csvInstance': query.split(',')}
+  model = train.update(body=body, id=model).execute()
+
+  return model
 
 #
 # Delete model
