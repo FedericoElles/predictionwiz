@@ -36,11 +36,18 @@ except ImportError:
   from django.utils import simplejson as json
 
 from data import DataModel, TextFile, ApiKey, getUserHash
-from adm import Predict
+from adm import Predict, Learn
+from config import getConfig
 
 def writeTemplate(self, name, template_values):
   path = os.path.join(os.path.dirname(__file__), name)
   self.response.out.write(template.render(path, template_values))
+
+def onlyAdmins():
+  try:
+    return getConfig('admin_only')
+  except:
+    return false
 
 #
 # User Frontpage
@@ -48,14 +55,31 @@ def writeTemplate(self, name, template_values):
 class MainPage(webapp.RequestHandler):
   def get(self):
     user = users.get_current_user()
-    if user:
-      records = DataModel().getmy()
+
+    if onlyAdmins():
+      if users.is_current_user_admin():
+        if user:
+          records = DataModel().getmy()
+          template_values = {'records':records,
+                           'user':user
+                           }
+          writeTemplate(self, 'main.html', template_values)
+      else:
+        self.redirect(users.create_login_url('/'))  
+
     else:
-      records = DataModel().getpublic()
-    template_values = {'records':records,
-                       'user':user
-                       }
-    writeTemplate(self, 'main.html', template_values)
+      if user:
+        records = DataModel().getmy()
+      else:
+        records = DataModel().getpublic()
+      template_values = {'records':records,
+                         'user':user
+                         }
+      writeTemplate(self, 'main.html', template_values)
+
+
+
+    #  self.response.out.write('Hello World')
 
 
 #
@@ -158,6 +182,44 @@ class Prediction(webapp.RequestHandler):
 
 
 #
+# Learning API for GET
+#
+class Learning(webapp.RequestHandler):
+  def get(self):
+    model = cgi.escape(self.request.get('model')) #key
+    post = cgi.escape(self.request.get('content'))
+    answer = cgi.escape(self.request.get('answer'))
+   
+    # Make the Google Prediction API call
+    user = users.get_current_user()
+    if user:
+      userid, apikey = ApiKey().getbyuser()
+    if not user or not userid:
+      userid, apikey = ApiKey().getbymodel(model)
+
+    datafile = False
+    mydatamodel = DataModel().get(model)
+    if mydatamodel:
+      #if mydatamodel.public or mydatamodel.userhash == getUserHash(): #not required since you don't want to make a model public to access it.
+      datafile = mydatamodel.datafile
+
+    if datafile and userid and post:
+      model = Learn(userid, datafile, post,answer)          
+
+      if 'trainingStatus' in model:
+        self.response.out.write(model['trainingStatus'])
+      elif 'kind' in model:
+        self.response.out.write(model['kind'])
+      else:
+        self.response.out.write('ERROR: trainingStatus not found in returned model. Dump: '+json.dumps(model))
+     
+    else:
+      self.response.out.write('ERROR: model or content missing')
+
+    #always print add return reference
+    self.response.out.write(self.request.get('addreturn',''))      
+
+#
 # upload textfile, return id
 #
 class Text(webapp.RequestHandler):
@@ -188,11 +250,20 @@ class Text(webapp.RequestHandler):
       self.response.out.write(textfile.text)
 
 
+class Demo(webapp.RequestHandler):
+  def get(self,model,title):
+    template_values = {'model':model,
+                       'title':title
+                      }
+    writeTemplate(self, 'demo.html', template_values)    
+
 
     
 application = webapp.WSGIApplication([
             ('/', MainPage),
             ('/api/predict', Prediction),
+            ('/api/learn', Learning),
+            ('/demo/(.*)/(.*)', Demo),
             ('/text', Text),
             ('/signin', SignIn)
             ],
