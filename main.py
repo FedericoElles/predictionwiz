@@ -47,7 +47,7 @@ def onlyAdmins():
   try:
     return getConfig('admin_only')
   except:
-    return false
+    return False
 
 #
 # User Frontpage

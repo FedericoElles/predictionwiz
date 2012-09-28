@@ -91,7 +91,7 @@ def onlyAdmins():
   try:
     return getConfig('admin_only')
   except:
-    return false
+    return False
 
 def writeTemplate(self, name, template_values):
   path = os.path.join(os.path.dirname(__file__), name)
