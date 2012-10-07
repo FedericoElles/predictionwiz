@@ -244,7 +244,7 @@ class MainPage(webapp.RequestHandler):
               client_id = getConfig('client_id'), 
               client_secret = getConfig('client_secret'),
               scope='https://www.googleapis.com/auth/prediction',
-              user_agent='predictionwiz/1.4',
+              user_agent='predictionwiz/1.5',
               domain='anonymous',
               xoauth_displayname='Prediction Wizard')
 
