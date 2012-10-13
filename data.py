@@ -25,15 +25,25 @@ class DataModel(db.Model):
   public = db.BooleanProperty(default=False)
   utility = db.TextProperty()
 
-  def save(self,bucket,datafile,caption,public):
+  def save(self,bucket,datafile,caption,public,olduserhash):
     model = DataModel()
     model.datafile = bucket + '/' + datafile
     model.caption = caption
     model.public = public
-    model.userhash = getUserHash()
+    if (olduserhash):
+      model.userhash = olduserhash
+    else:
+      model.userhash = getUserHash()
    
     model.put()
     return str(model.key())
+
+  def exists(self,key):
+    model = self.get(key)
+    if model:
+      return True
+    else:
+      return False
 
   def setUtility(self,key,utility):
     model = self.get(key)
@@ -91,6 +101,13 @@ class ApiKey(db.Model):
   userhash = db.StringProperty()
   userkey = db.TextProperty(default='') #v2: user.user_id()
   accesskey = db.TextProperty(default='') #API access key
+
+  def exists(self,userhash):
+    apikey = self.get_by_key_name(userhash)
+    if apikey:
+      return True
+    else:
+      return False
   
   def saveapikey(self,accesskey):
     userhash = getUserHash()
