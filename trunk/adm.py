@@ -471,6 +471,33 @@ class oStorageAPICheck(webapp.RequestHandler):
     self.response.out.write('file '+filename+' was written successfully.')
 
 
+def writeToGS(bucket,name, data):
+ 
+    filename = '/gs/'+bucket+'/'+name
+    writable_file_name = files.gs.create(filename, mime_type='text/plain')
+    with files.open(writable_file_name, 'a') as f:
+      f.write(data.encode('ascii', 'ignore'))
+    files.finalize(writable_file_name)
+    return bucket+'/'+name
+
+def userOK(userhash):
+    return ApiKey().exists(userhash)
+
+def modelOK(key):
+    return DataModel().exists(key)
+
+def createDM(bucket,name,caption,userhash):
+    return DataModel().save(bucket,name,caption,False,userhash)
+
+def trainDM(userid, modelName):
+    html, utilityOutput = Training(userid,'insert',modelName,False)
+    return html
+
+def statusDM(userid, key):
+    modelName = DataModel().getdatafile(key)
+    html, utilityOutput = Training(userid,'get',modelName,False)
+    return html
+
 application = webapp.WSGIApplication([
             ('/adm/', MainPage),
             ('/adm/sync', AdmList),  

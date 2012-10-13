@@ -36,7 +36,7 @@ except ImportError:
   from django.utils import simplejson as json
 
 from data import DataModel, TextFile, ApiKey, getUserHash
-from adm import Predict, Learn
+from adm import Predict, Learn, writeToGS, userOK, createDM, trainDM, statusDM, modelOK
 from config import getConfig
 
 def writeTemplate(self, name, template_values):
@@ -258,12 +258,93 @@ class Demo(webapp.RequestHandler):
     writeTemplate(self, 'demo.html', template_values)    
 
 
+class DemoCreate(webapp.RequestHandler):
+  def get(self):
+    template_values = {}
+    writeTemplate(self, 'demo_create.html', template_values)    
+
+
+class Creating(webapp.RequestHandler):
+  def post(self):
+    data = cgi.escape(self.request.get('data',''))
+    bucket = cgi.escape(self.request.get('bucket',''))
+    filename = cgi.escape(self.request.get('name',''))
+    userhash = cgi.escape(self.request.get('hash',''))
+    error = ''
+
+    if data == '': error = 'data value blank'
+    if bucket == '': error = 'bucket value blank'
+    if filename == '': error = 'file name value blank'
+    if userhash == '': error = 'hash  value blank'
+    if userhash:
+      if not userOK(userhash): error = 'userhash not found'
+
+    if error:
+      self.response.out.write('ERROR '+error)
+    else:
+      modelName = writeToGS(bucket,filename,data)
+      #self.response.out.write(modelName)
+      modelKey = createDM(bucket,filename,modelName,userhash)
+
+      userid, apikey = ApiKey().getbymodel(modelKey)
+      
+      feedback = trainDM(userid, modelName)
+
+      if 'error' in feedback:
+         self.response.out.write ('ERROR ' + feedback['error']['message'])
+      else:
+        #html = json.dumps(feedback)  
+        self.response.out.write (modelKey)
+
+
+# DONE <accuracy>
+# RUNNING
+# ERROR <reason>
+class Status(webapp.RequestHandler):
+  def get(self):
+    model =self.request.get('model','')
+    error = ''
+    if model == '': error = 'model value blank'
+
+    if model:
+      if not modelOK(model):
+        error = 'model not found'
+      else:
+        userhash = DataModel().getuserhash(model)
+        if userhash == '':
+          error = 'user not available for model'
+    
+    if error:
+      self.response.out.write('ERROR '+error)
+    else:
+      userid, apikey = ApiKey().getbymodel(model) 
+      feedback = statusDM(userid, model)
+      #self.response.out.write ('Userhash:'+userid)
+      #self.response.out.write ('Model: '+model)  
+      
+      if 'error' in feedback:
+         self.response.out.write ('ERROR ' + feedback['error']['message'])
+      else:
+        status = feedback['trainingStatus']
+        if status == 'DONE':
+          if 'classificationAccuracy' in feedback['modelInfo']:
+            accu = feedback['modelInfo']['classificationAccuracy']
+            self.response.out.write (status+' '+str(accu))
+          else:
+            self.response.out.write ('ERROR This is no classification model')
+        else:
+          self.response.out.write (status)   
+        #html = json.dumps(feedback)  
+        #self.response.out.write (html)      
     
 application = webapp.WSGIApplication([
             ('/', MainPage),
             ('/api/predict', Prediction),
             ('/api/learn', Learning),
+            ('/api/create', Creating),
+            ('/api/status', Status),
             ('/demo/(.*)/(.*)', Demo),
+            ('/demo/create', DemoCreate),
             ('/text', Text),
             ('/signin', SignIn)
             ],
