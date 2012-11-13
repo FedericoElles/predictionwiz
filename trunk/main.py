@@ -30,6 +30,8 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
+from google.appengine.api import memcache
+
 try:
   import json
 except ImportError:
@@ -96,9 +98,19 @@ class Prediction(webapp.RequestHandler):
   def post(self):
     model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
+    downcase = cgi.escape(self.request.get('downcase','n'))
+    caching = cgi.escape(self.request.get('caching','0'))
+    try:
+      caching = int(caching)
+    except:
+      caching = 0
 
-    
-   
+    if downcase == 'y':
+      post = post.lower()
+
+    #result = False
+  
+     
     # Make the Google Prediction API call
     user = users.get_current_user()
     if user:
@@ -115,13 +127,21 @@ class Prediction(webapp.RequestHandler):
     addreturn = self.request.get('addreturn','')
     addjson = self.request.get('addjson','')
 
+    
+   
     if datafile and userid and post:
+      memkey = datafile+'//'+userid+'//'+post
       #try:
-      data = Predict(userid, datafile, post)
-      #except:
-      #  data = {'outputValue':'error'}
-
-      
+      if caching > 0:
+        cache = memcache.get(memkey)
+        if cache is not None:
+          data = cache
+        else:
+          data = Predict(userid, datafile, post) 
+          memcache.add(memkey, data, caching*60)
+      else:
+        data = Predict(userid, datafile, post) 
+           
      
       if addreturn:
         try:
@@ -149,34 +169,57 @@ class Prediction(webapp.RequestHandler):
   def get(self):
     model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
-   
-    # Make the Google Prediction API call
-    user = users.get_current_user()
-    if user:
-      userid, apikey = ApiKey().getbyuser()
-    if not user or not userid:
-      userid, apikey = ApiKey().getbymodel(model)
+    downcase = cgi.escape(self.request.get('downcase','n'))
+    caching = cgi.escape(self.request.get('caching','0'))
+    try:
+      caching = int(caching)
+    except:
+      caching = 0
 
-    datafile = False
-    mydatamodel = DataModel().get(model)
-    if mydatamodel:
-      #if mydatamodel.public or mydatamodel.userhash == getUserHash(): #not required since you don't want to make a model public to access it.
-      datafile = mydatamodel.datafile
+    if downcase == 'y':
+      post = post.lower()
 
-    if datafile and userid and post:
-      data = Predict(userid, datafile, post)          
+    result = False
 
-      if 'outputLabel' in data:
-        self.response.out.write(data['outputLabel'])
-      elif 'outputValue' in data:
-        self.response.out.write(data['outputValue'])        
+    memkey = model+'//'+post
+    if caching > 0:
+      cache = memcache.get(memkey)
+      if cache is not None:
+        result = cache
+
+    if not result:
+      # Make the Google Prediction API call
+      user = users.get_current_user()
+      if user:
+        userid, apikey = ApiKey().getbyuser()
+      if not user or not userid:
+        userid, apikey = ApiKey().getbymodel(model)
+
+      datafile = False
+      mydatamodel = DataModel().get(model)
+      if mydatamodel:
+        #if mydatamodel.public or mydatamodel.userhash == getUserHash(): #not required since you don't want to make a model public to access it.
+        datafile = mydatamodel.datafile
+
+      if datafile and userid and post:
+        data = Predict(userid, datafile, post)          
+
+        if 'outputLabel' in data:
+          result = data['outputLabel']
+        elif 'outputValue' in data:
+          result = data['outputValue']
+        else:
+          result = json.dumps(data)
+       
       else:
-        self.response.out.write(json.dumps(data))
-     
-    else:
-      self.response.out.write('ERROR: model or content missing')
+        result = 'ERROR: model or content missing'
+
+      if caching > 0:
+        memcache.add(memkey, result, caching*60)
+
 
     #always print add return reference
+    self.response.out.write(str(result))  
     self.response.out.write(self.request.get('addreturn',''))      
     
 
