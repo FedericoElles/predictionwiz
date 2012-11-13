@@ -128,7 +128,7 @@ class AdmNewModel(webapp.RequestHandler):
 
       
       if datafile != '' and caption != '' and bucket != '':
-        newmodelkey = DataModel().save(bucket,datafile,caption,public)
+        newmodelkey = DataModel().save(bucket,datafile,caption,public,False)
       self.redirect("/adm/")
     else:
       self.redirect(users.create_login_url(self.request.uri))    

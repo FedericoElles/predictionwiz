@@ -444,6 +444,14 @@ Prediction Wizard v1.5
   </select>
 </td>
 </tr>
+<tr>
+<td style="width:120px;">Caching:</td>
+<td>Minutes: <input  type="number" id=inp_caching_mass value=0 /> 0 = No caching</td>
+</tr>
+<tr>
+<td style="width:120px;">Auto LowerCase:</td>
+<td><input id="inp_downcase_mass" type="checkbox"><label for="inp_downcase_mass">Input test will be lowercase</label></td>
+</tr>
 </table>	
 
 	<p><b>Input</b></p>
@@ -1245,6 +1253,8 @@ $('#btn_mass_predict').click(function() {
 	$('#btn_mass_predict').attr('disabled','disabled');
 	$('#div_mass_export_block').hide();
 	$('#ta_mass_output').val(''); //empty output
+	caching = $('#inp_caching_mass').val()
+	downcase = $('#inp_downcase_mass').attr('checked')
 	ga_mass = {};
 	
 	sImport = $('#ta_mass_input').val();
@@ -1259,7 +1269,9 @@ $('#btn_mass_predict').click(function() {
 		  'data':asRow[i],
 		  'result':''
 		};
-		code = "predictMassRecord('"+model+"','"+asRow[i].replace(/'/g,"\\'")+"',"+i+");";
+		rowvalue = asRow[i].replace(/'/g,"\\'")
+		if (downcase) rowvalue = rowvalue.toLowerCase()
+		code = "predictMassRecord('"+model+"','"+rowvalue+"',"+i+","+caching+");";
 		setTimeout(code,400*i);
 		j++;
 	}
@@ -1276,11 +1288,12 @@ $('#btn_mass_predict').click(function() {
 //
 // mass prediction one record
 //
-function predictMassRecord(model, testdata, i){
+function predictMassRecord(model, testdata, i, caching){
+  if (typeof caching == "undefined") caching = 0
   //$('#td_result'+i).html("Working...");
   $.ajax({url: '/api/predict',
 	type: 'POST',
-	data: {model:model,content:testdata,addjson:'||'+i+'||'+testdata},
+	data: {model:model,content:testdata,addjson:'||'+i+'||'+testdata,caching:caching},
 	success: function(data) {
 	  gmasspredictcounter++;
 
