@@ -116,7 +116,7 @@ Prediction Wizard v1.5
 <p> GET API:<br>
   /api/predict?model=<span class="span_sim_model_key"></span>&content=[query] - returns result as single string
 </p>
-<p><a target="_blank" id="a_demo" href="#">Demo page</a></p>
+<p>Only for public data models: <a target="_blank" id="a_demo" href="#">Demo page</a></p>
 
 {% endif %}
 <!--
@@ -1043,7 +1043,7 @@ $('#form_gen').submit(function() {
 		if (data.outputLabel) 
 			{html+=data.outputLabel;} 
 		else 
-			{html+=data.outputValue.toString(2);}
+			{html+=(Math.round(data.outputValue*100)/100).toString();}
 		
 		html +='</b>';
 		j=0;
@@ -1312,7 +1312,7 @@ function predictMassRecord(model, testdata, i, caching){
 		if (data.outputLabel) 
 			{sPredicted=data.outputLabel;} 
 		else 
-			{sPredicted=data.outputValue.toString(2);}
+			{sPredicted=(Math.round(data.outputValue*100)/100).toString();}
 			
 		
 		sMultiResults = '';

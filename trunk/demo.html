@@ -155,7 +155,7 @@ $('#form_gen').submit(function() {
 		if (data.outputLabel) 
 			{html+=data.outputLabel;} 
 		else 
-			{html+=data.outputValue.toString(2);}
+			{html+=(Math.round(data.outputValue*100)/100).toString();}
 		
 		html +='</b>';
 		j=0;
