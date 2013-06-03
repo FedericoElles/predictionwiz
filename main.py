@@ -27,9 +27,8 @@ import random
 import string
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.ext import webapp
+import webapp2
 from google.appengine.ext.webapp import template
-from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.api import memcache
 
 try:
@@ -43,7 +42,7 @@ from config import getConfig
 
 def writeTemplate(self, name, template_values):
   path = os.path.join(os.path.dirname(__file__), name)
-  self.response.out.write(template.render(path, template_values))
+  self.response.write(template.render(path, template_values))
 
 def onlyAdmins():
   try:
@@ -54,7 +53,7 @@ def onlyAdmins():
 #
 # User Frontpage
 #
-class MainPage(webapp.RequestHandler):
+class MainPage(webapp2.RequestHandler):
   def get(self):
     user = users.get_current_user()
 
@@ -81,20 +80,20 @@ class MainPage(webapp.RequestHandler):
 
 
 
-    #  self.response.out.write('Hello World')
+    #  self.response.write('Hello World')
 
 
 #
 # Sign in
 #
-class SignIn(webapp.RequestHandler):
+class SignIn(webapp2.RequestHandler):
   def get(self):
     self.redirect(users.create_login_url('/'))    
 
 #
 # Prediction API for POST and GET
 #
-class Prediction(webapp.RequestHandler):
+class Prediction(webapp2.RequestHandler):
   def post(self):
     model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
@@ -146,24 +145,24 @@ class Prediction(webapp.RequestHandler):
       if addreturn:
         try:
           if 'outputLabel' in data:
-            self.response.out.write(data['outputLabel'])
+            self.response.write(data['outputLabel'])
           elif 'outputValue' in data:
-            self.response.out.write(data['outputValue'])        
+            self.response.write(data['outputValue'])        
           else:
-            self.response.out.write(json.dumps(data))
+            self.response.write(json.dumps(data))
         except:
-          self.response.out.write(json.dumps(data))   
-        self.response.out.write(self.request.get('addreturn',''))
+          self.response.write(json.dumps(data))   
+        self.response.write(self.request.get('addreturn',''))
       else:
-        self.response.out.write(json.dumps(data))
+        self.response.write(json.dumps(data))
 
       if addjson:
-        self.response.out.write(addjson)
+        self.response.write(addjson)
     else:
       if addreturn:
-        self.response.out.write( 'error'+addreturn)
+        self.response.write( 'error'+addreturn)
       else:
-        self.response.out.write( '{"error":"user, model or post were empty"}')
+        self.response.write( '{"error":"user, model or post were empty"}')
         
 
   def get(self):
@@ -219,15 +218,15 @@ class Prediction(webapp.RequestHandler):
 
 
     #always print add return reference
-    self.response.out.write(str(result))  
-    self.response.out.write(self.request.get('addreturn',''))      
+    self.response.write(str(result))  
+    self.response.write(self.request.get('addreturn',''))      
     
 
 
 #
 # Learning API for GET
 #
-class Learning(webapp.RequestHandler):
+class Learning(webapp2.RequestHandler):
   def get(self):
     model = cgi.escape(self.request.get('model')) #key
     post = cgi.escape(self.request.get('content'))
@@ -250,22 +249,22 @@ class Learning(webapp.RequestHandler):
       model = Learn(userid, datafile, post,answer)          
 
       if 'trainingStatus' in model:
-        self.response.out.write(model['trainingStatus'])
+        self.response.write(model['trainingStatus'])
       elif 'kind' in model:
-        self.response.out.write(model['kind'])
+        self.response.write(model['kind'])
       else:
-        self.response.out.write('ERROR: trainingStatus not found in returned model. Dump: '+json.dumps(model))
+        self.response.write('ERROR: trainingStatus not found in returned model. Dump: '+json.dumps(model))
      
     else:
-      self.response.out.write('ERROR: model or content missing')
+      self.response.write('ERROR: model or content missing')
 
     #always print add return reference
-    self.response.out.write(self.request.get('addreturn',''))      
+    self.response.write(self.request.get('addreturn',''))      
 
 #
 # upload textfile, return id
 #
-class Text(webapp.RequestHandler):
+class Text(webapp2.RequestHandler):
   def post(self):
     text = cgi.escape(self.request.get('text',''))
     if text:
@@ -278,11 +277,11 @@ class Text(webapp.RequestHandler):
       try:
         textfile.put()
         domain = self.request.uri
-        self.response.out.write(domain+'?key='+key)
+        self.response.write(domain+'?key='+key)
       except:
-         self.response.out.write('Error'+text+','+key)
+         self.response.write('Error'+text+','+key)
     else:
-      self.response.out.write('')
+      self.response.write('')
 
   def get(self):
     key = cgi.escape(self.request.get('key',''))
@@ -290,10 +289,10 @@ class Text(webapp.RequestHandler):
       textfile = TextFile().get_by_key_name(key)
       self.response.headers['Content-Type'] = 'text/plain; charset=UTF-8'
       #self.response.headers['Content-Length'] = len(textfile.text)
-      self.response.out.write(textfile.text)
+      self.response.write(textfile.text)
 
 
-class Demo(webapp.RequestHandler):
+class Demo(webapp2.RequestHandler):
   def get(self,model,title):
     template_values = {'model':model,
                        'title':title
@@ -301,13 +300,13 @@ class Demo(webapp.RequestHandler):
     writeTemplate(self, 'demo.html', template_values)    
 
 
-class DemoCreate(webapp.RequestHandler):
+class DemoCreate(webapp2.RequestHandler):
   def get(self):
     template_values = {}
     writeTemplate(self, 'demo_create.html', template_values)    
 
 
-class Creating(webapp.RequestHandler):
+class Creating(webapp2.RequestHandler):
   def post(self):
     data = cgi.escape(self.request.get('data',''))
     bucket = cgi.escape(self.request.get('bucket',''))
@@ -323,10 +322,10 @@ class Creating(webapp.RequestHandler):
       if not userOK(userhash): error = 'userhash not found'
 
     if error:
-      self.response.out.write('ERROR '+error)
+      self.response.write('ERROR '+error)
     else:
       modelName = writeToGS(bucket,filename,data)
-      #self.response.out.write(modelName)
+      #self.response.write(modelName)
       modelKey = createDM(bucket,filename,modelName,userhash)
 
       userid, apikey = ApiKey().getbymodel(modelKey)
@@ -334,16 +333,16 @@ class Creating(webapp.RequestHandler):
       feedback = trainDM(userid, modelName)
 
       if 'error' in feedback:
-         self.response.out.write ('ERROR ' + feedback['error']['message'])
+         self.response.write ('ERROR ' + feedback['error']['message'])
       else:
         #html = json.dumps(feedback)  
-        self.response.out.write (modelKey)
+        self.response.write (modelKey)
 
 
 # DONE <accuracy>
 # RUNNING
 # ERROR <reason>
-class Status(webapp.RequestHandler):
+class Status(webapp2.RequestHandler):
   def get(self):
     model =self.request.get('model','')
     error = ''
@@ -358,29 +357,31 @@ class Status(webapp.RequestHandler):
           error = 'user not available for model'
     
     if error:
-      self.response.out.write('ERROR '+error)
+      self.response.write('ERROR '+error)
     else:
       userid, apikey = ApiKey().getbymodel(model) 
       feedback = statusDM(userid, model)
-      #self.response.out.write ('Userhash:'+userid)
-      #self.response.out.write ('Model: '+model)  
+      #self.response.write ('Userhash:'+userid)
+      #self.response.write ('Model: '+model)  
       
       if 'error' in feedback:
-         self.response.out.write ('ERROR ' + feedback['error']['message'])
+         self.response.write ('ERROR ' + feedback['error']['message'])
       else:
         status = feedback['trainingStatus']
         if status == 'DONE':
           if 'classificationAccuracy' in feedback['modelInfo']:
             accu = feedback['modelInfo']['classificationAccuracy']
-            self.response.out.write (status+' '+str(accu))
+            self.response.write (status+' '+str(accu))
           else:
-            self.response.out.write ('ERROR This is no classification model')
+            self.response.write ('ERROR This is no classification model')
         else:
-          self.response.out.write (status)   
+          self.response.write (status)   
         #html = json.dumps(feedback)  
-        #self.response.out.write (html)      
-    
-application = webapp.WSGIApplication([
+        #self.response.write (html)      
+
+
+
+app = webapp2.WSGIApplication([
             ('/', MainPage),
             ('/api/predict', Prediction),
             ('/api/learn', Learning),
@@ -390,12 +391,4 @@ application = webapp.WSGIApplication([
             ('/demo/create', DemoCreate),
             ('/text', Text),
             ('/signin', SignIn)
-            ],
-            debug=True)
-
-
-def main():
-  run_wsgi_app(application)
-
-if __name__ == '__main__':
-  main()
+            ])

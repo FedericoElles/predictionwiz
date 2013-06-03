@@ -28,7 +28,6 @@ __author__ = 'Robert Kaplow, Federico Elles'
 
 from google.appengine.api import files
 
-from google.appengine.ext.webapp.util import run_wsgi_app
 
 from google.appengine.api import urlfetch
 try:
@@ -56,7 +55,7 @@ from oauth2client.client import AccessTokenRefreshError
 from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.ext import webapp
+import webapp2
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import util
 from apiclient.errors import HttpError as HTTPError
@@ -101,7 +100,7 @@ def writeTemplate(self, name, template_values):
 #
 # Logout
 #
-class Logout(webapp.RequestHandler):
+class Logout(webapp2.RequestHandler):
   def get(self):
     self.redirect(users.create_logout_url("/"))
 
@@ -110,7 +109,7 @@ class Logout(webapp.RequestHandler):
 #
 # Create new model
 #
-class AdmNewModel(webapp.RequestHandler):
+class AdmNewModel(webapp2.RequestHandler):
   def post(self):
     user = users.get_current_user()
     if user:
@@ -136,7 +135,7 @@ class AdmNewModel(webapp.RequestHandler):
 #
 # Deete model
 #
-class AdmDeleteModel(webapp.RequestHandler):
+class AdmDeleteModel(webapp2.RequestHandler):
   def post(self):
     user = users.get_current_user()
     if user:    
@@ -152,7 +151,7 @@ class AdmDeleteModel(webapp.RequestHandler):
 #
 # Train new model
 #
-class AdmTrain(webapp.RequestHandler):
+class AdmTrain(webapp2.RequestHandler):
   def post(self):
     user = users.get_current_user()
     if user:      
@@ -174,7 +173,7 @@ class AdmTrain(webapp.RequestHandler):
 #
 # Ask for status of training
 #
-class AdmTrainStatus(webapp.RequestHandler):
+class AdmTrainStatus(webapp2.RequestHandler):
   def post(self):
     user = users.get_current_user()
     if user:      
@@ -189,7 +188,7 @@ class AdmTrainStatus(webapp.RequestHandler):
 #Sync Models in db with server
 #
 
-class AdmList(webapp.RequestHandler):
+class AdmList(webapp2.RequestHandler):
   def post(self):
     user = users.get_current_user()
     if user:          
@@ -228,7 +227,7 @@ class AdmList(webapp.RequestHandler):
 # oAuth2Test
 # ----------
 
-class MainPage(webapp.RequestHandler):
+class MainPage(webapp2.RequestHandler):
 
   def get(self):
     user = users.get_current_user()
@@ -261,7 +260,7 @@ class MainPage(webapp.RequestHandler):
     else:
       self.redirect(users.create_login_url(self.request.uri))  
 
-class OAuthHandler(webapp.RequestHandler):
+class OAuthHandler(webapp2.RequestHandler):
 
   def get(self):
     user = users.get_current_user()
@@ -288,7 +287,7 @@ class OAuthHandler(webapp.RequestHandler):
 # 2: http://code.google.com/p/google-api-python-client/source/browse/samples/prediction/prediction.py
 #
 
-class oAuthCheck2(webapp.RequestHandler):
+class oAuthCheck2(webapp2.RequestHandler):
   def get(self):
 
     user = users.get_current_user()
@@ -456,7 +455,7 @@ def GetPostDataOld(query):
 
 
 
-class oStorageAPICheck(webapp.RequestHandler):
+class oStorageAPICheck(webapp2.RequestHandler):
   def get(self):
     filename = self.request.get('filename') or 'api.txt'
     bucket = self.request.get('bucket') or 'pwiz'
@@ -498,7 +497,7 @@ def statusDM(userid, key):
     html, utilityOutput = Training(userid,'get',modelName,False)
     return html
 
-application = webapp.WSGIApplication([
+app = webapp2.WSGIApplication([
             ('/adm/', MainPage),
             ('/adm/sync', AdmList),  
             ('/adm/exit', Logout),            
@@ -508,12 +507,5 @@ application = webapp.WSGIApplication([
             ('/adm/api/trainstatus', AdmTrainStatus),
             ('/adm/auth', OAuthHandler),
             ('/adm/debug_storage', oStorageAPICheck)
-            ],
-            debug=True)
+            ])
 
-
-def main():
-  run_wsgi_app(application)
-
-if __name__ == '__main__':
-  main()
