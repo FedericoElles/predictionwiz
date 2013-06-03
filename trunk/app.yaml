@@ -1,6 +1,6 @@
-application: predictionwiz
-version: 1_4
-runtime: python
+application: predictionwiz-hrd
+version: 1_5
+runtime: python27
 api_version: 1
 threadsafe: false
 
@@ -15,11 +15,11 @@ handlers:
   static_dir: css
 
 - url: /adm/.*
-  script: adm.py
+  script: adm.app
   secure: always  
   
 - url: /debug/.*
-  script: adm.py
+  script: adm.app
   login: admin    
 
 - url: /webstore/.*
@@ -27,5 +27,5 @@ handlers:
   secure: always
 
 - url: /.*
-  script: main.py
+  script: main.app
   secure: always
