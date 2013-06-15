@@ -507,5 +507,5 @@ app = webapp2.WSGIApplication([
             ('/adm/api/trainstatus', AdmTrainStatus),
             ('/adm/auth', OAuthHandler),
             ('/adm/debug_storage', oStorageAPICheck)
-            ])
+            ],debug=True)
 

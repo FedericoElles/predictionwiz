@@ -14,6 +14,45 @@ def getUserHash():
   else:
     return False
 
+
+#
+# Dictionary Model
+#
+class DictModel(db.Model):
+  dictName = db.StringProperty()
+  dictKey  = db.StringProperty()
+  dictValue= db.TextProperty()
+
+  def save(self,paramName,paramKey,paramValue):
+    key = paramName +'-'+ hashlib.md5(paramKey).hexdigest()
+    model = self.get_by_key_name(key)
+    if not model:
+      model = DictModel(key_name=key)
+      model.dictName = paramName
+      model.dictKey  = paramKey
+    model.dictValue = paramValue
+    model.put()
+    return 'OK'
+
+  def getValue(self,paramName,paramKey):
+    key = paramName +'-'+ hashlib.md5(paramKey).hexdigest()
+    model = self.get_by_key_name(key)
+    if model:
+      return model.dictValue
+    else:
+      return ''
+
+  def deleteValue(self,paramName,paramKey):
+    key = paramName +'-'+ hashlib.md5(paramKey).hexdigest()
+    model = self.get_by_key_name(key)
+    if model:
+      model.delete()
+      return 'OK'
+    else:
+      return ''
+
+
+
 #
 # DataModel
 #
