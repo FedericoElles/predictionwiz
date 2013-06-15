@@ -36,7 +36,7 @@ try:
 except ImportError:
   from django.utils import simplejson as json
 
-from data import DataModel, TextFile, ApiKey, getUserHash
+from data import DataModel, TextFile, ApiKey, getUserHash, DictModel
 from adm import Predict, Learn, writeToGS, userOK, createDM, trainDM, statusDM, modelOK
 from config import getConfig
 
@@ -339,6 +339,40 @@ class Creating(webapp2.RequestHandler):
         self.response.write (modelKey)
 
 
+class Creating2(webapp2.RequestHandler):
+  def post(self):
+    fileContent = cgi.escape(self.request.get('fileContent',''))
+    bucketName = cgi.escape(self.request.get('bucketName',''))
+    fileName = cgi.escape(self.request.get('fileName',''))
+    hashKey = cgi.escape(self.request.get('hashKey',''))
+    error = ''
+
+    if fileContent == '': error = 'fileContent value blank'
+    if bucketName == '': error = 'bucketName value blank'
+    if fileName == '': error = 'fileName name value blank'
+    if hashKey == '': error = 'hashKey value blank'
+    if hashKey:
+      if not userOK(hashKey): error = 'hashKey not found'
+
+    if error:
+      self.response.write('{"error":"'+error+'"}')
+    else:
+      modelName = writeToGS(bucketName,fileName,fileContent)
+      #self.response.write(modelName)
+      modelKey = createDM(bucketName,fileName,modelName,hashKey)
+
+      userid, apikey = ApiKey().getbymodel(modelKey)
+      
+      feedback = trainDM(userid, modelName)
+
+      if 'error' in feedback:
+         self.response.write ('{"error":"'+ feedback['error']['message']+'"}')
+      else:
+        #html = json.dumps(feedback)  
+        self.response.write ('{"modelKey":"'+modelKey+'","feedback":'+json.dumps(feedback)+"}")        
+  def get(self):
+    self.post()
+
 # DONE <accuracy>
 # RUNNING
 # ERROR <reason>
@@ -380,15 +414,51 @@ class Status(webapp2.RequestHandler):
         #self.response.write (html)      
 
 
+class DictSet(webapp2.RequestHandler):
+  def get(self,name):
+    key = cgi.escape(self.request.get('key',''))
+    value = cgi.escape(self.request.get('value',''))
+    
+    if key and value and name:
+      self.response.write (DictModel().save(name,key,value))
+    else:
+      self.response.write ('key or value parameter missing')
 
+class DictGet(webapp2.RequestHandler):
+  def get(self,name):
+    key = cgi.escape(self.request.get('key',''))
+
+    if key:
+      self.response.write (DictModel().getValue(name,key))
+    else:
+      self.response.write ('key missing')
+
+class DictDelete(webapp2.RequestHandler):
+  def get(self,name):
+    key = cgi.escape(self.request.get('key',''))
+    if key:
+      self.response.write (DictModel().deleteValue(name,key))
+    else:
+      self.response.write ('key missing')
+
+class DictEmpty(webapp2.RequestHandler):
+  def get(self,name):
+    self.response.write ('not yet available')
+    
 app = webapp2.WSGIApplication([
             ('/', MainPage),
             ('/api/predict', Prediction),
             ('/api/learn', Learning),
             ('/api/create', Creating),
             ('/api/status', Status),
+            ('/api2/create', Creating2),           
             ('/demo/(.*)/(.*)', Demo),
             ('/demo/create', DemoCreate),
             ('/text', Text),
-            ('/signin', SignIn)
-            ])
+            ('/signin', SignIn),
+            ('/dict/(.*)/set', DictSet),
+            ('/dict/(.*)/get', DictGet),
+            ('/dict/(.*)/delete', DictDelete),
+            ('/dict/(.*)/empty', DictEmpty)            
+            ],debug=True)
+

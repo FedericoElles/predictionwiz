@@ -1,5 +1,5 @@
 application: predictionwiz-hrd
-version: 1_5
+version: 1_6
 runtime: python27
 api_version: 1
 threadsafe: false
@@ -26,6 +26,11 @@ handlers:
   script: webstore.py
   secure: always
 
+- url: /api2demo
+  static_dir: api2
+
+
+  
 - url: /.*
   script: main.app
   secure: always

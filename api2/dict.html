@@ -1,0 +1,128 @@
+<form ng-show="!loading" name="myForm" class="bs-docs-example form-horizontal">
+
+<h1>Dict API</h1>
+
+<h5>
+  General Parameters
+</h5>
+
+<div class="control-group">
+	<label class="control-label">App name</label>
+	<div class="controls">
+		<input class="input input-large" type=text ng-model="params.appName" placeholder="Google App Engine App Name">
+		<span ng-show="!params.appName" class="label label-important">Required</span>
+		<span class=muted>The name of the app, the PredictionWiz is running
+		</span>
+	</div>
+</div>		
+
+
+<div class="control-group">
+    <label class="control-label">Dictionary Name</label>
+    <div class="controls">
+		<input class="input input-large" type=text ng-model="params.dictName" placeholder="Unique dictionary name">
+		<span class=muted>The name of the dictionary, you want to save key-value pairs to
+		</span>
+    </div>
+</div>
+
+
+
+<h5>
+  API Methods
+</h5>
+
+<tabs>
+
+<pane heading="Set">
+	<p>Save a value for a key</p>
+	<div class="control-group">
+		<label class="control-label">Key</label>
+		<div class="controls">
+			<input class="input input-large" type=text ng-model="params.setKey" placeholder="a key name">
+			<span ng-show="!params.setKey" class="label label-important">Required</span>			
+		</div> 
+    </div>
+
+	<div class="control-group">
+		<label class="control-label">Value</label>
+		<div class="controls">
+			<textarea ng-model="params.value" placeholder="Single line result">
+			</textarea>
+			<span ng-show="!params.value" class="label label-important">Required</span>			
+		</div> 
+    </div>
+
+	<div ng-show="ctrl.emptyParams()" class="alert">
+		<strong>Hint:</strong> Fill out all mandatory fields to execute API calls
+	</div>
+	<div ng-hide="ctrl.emptyParams()">
+		<p>API Call</p>
+		<pre id="urlSet">https://{{params.appName}}.appspot.com/dict/{{params.dictName  | urlencode }}/set?key={{params.setKey  | urlencode }}&value={{params.value | urlencode}}</pre>
+		<button class="btn btn-warning" ng-click="apiSet()">
+			<span ng-hide="set.loading">Execute API Call</span>
+			<i ng-show="set.loading" class="icon-spin icon-spinner"></i>
+		
+		</button>
+	</div>
+	
+	<div ng-show="set.available">
+		<br>
+		<p">Result</p>
+		<pre ng-bind="set.result"></pre>
+		<p>If result = "OK", the value was successfully saved</p>
+    </div>
+
+	
+</pane>
+
+
+<pane heading="Get">
+	<p>Gets a value for a key</p>
+	<div class="control-group">
+		<label class="control-label">Key</label>
+		<div class="controls">
+			<input class="input input-large" type=text ng-model="params.getKey" placeholder="a key name">
+			<span ng-show="!params.getKey" class="label label-important">Required</span>			
+		</div> 
+    </div>
+
+
+	<div ng-show="ctrl.emptyParams()" class="alert">
+		<strong>Hint:</strong> Fill out all mandatory fields to execute API calls
+	</div>
+	<div ng-hide="ctrl.emptyParams()">
+		<p>API Call</p>
+		<pre id="urlGet">https://{{params.appName}}.appspot.com/dict/{{params.dictName | urlencode}}/get?key={{params.getKey | urlencode}}</pre>
+		<button class="btn btn-warning" ng-click="apiGet()">
+			<span ng-hide="get.loading">Execute API Call</span>
+			<i ng-show="get.loading" class="icon-spin icon-spinner"></i>
+		
+		</button>
+	</div>
+	
+	<div ng-show="get.available">
+		<br>
+		<p>Result</p>
+		<pre ng-bind="get.result"></pre>
+		<p class="alert alert-warning" ng-show="get.result==''">If result empty, key is not available</p>
+    </div>
+
+	
+</pane>
+
+
+<pane heading="Delete">
+		<p>Deletes an key-value pair</p>
+</pane>
+
+<pane heading="Empty">
+		<p>Deletes a whole dictionary</p>
+</pane>
+
+
+</tabs>
+
+
+
+</form>

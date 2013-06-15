@@ -1,0 +1,166 @@
+<form ng-show="!loading" name="myForm" class="bs-docs-example form-horizontal">
+
+
+<h5>
+  General Parameters
+</h5>
+
+<div class="control-group">
+	<label class="control-label">App name</label>
+	<div class="controls">
+		<input class="input input-large" type=text ng-model="params.appName" placeholder="Google App Engine App Name">
+		<span ng-show="!params.appName" class="label label-important">Required</span>
+		<span class=muted>The name of the app, the PredictionWiz is running
+		</span>
+	</div>
+</div>		
+
+
+<div class="control-group">
+    <label class="control-label">Hash Key</label>
+    <div class="controls">
+		<input class="input input-large" type=text ng-model="params.hashKey" placeholder="Secret PredictionWiz Hash Key">
+		<button class="btn" ng-click="ctrl.infoHashKey=true" ng-hide="ctrl.infoHashKey==true">?</button> 
+		<span ng-show="!params.hashKey" class="label label-important">Required</span>
+		<div ng-show="ctrl.infoHashKey==true" class="alert alert-info"> 
+			<strong>How to get your Hash Key</strong>
+			<ol>
+				<li>Go to <a href="https://appengine.google.com">https://appengine.google.com</a></li>
+				<li>Click on your app</li>
+				<li>On the left, goto Data -> Datastore Viewer</li>
+				<li>The ApiKey should be selected in a drop down menu.</li>
+				<li>Below, there are some Entities displayed. There is one column named userhash.</li>
+				<li>The value in the 1 entity is your super secret hash value for calling api/create.</li>
+				<li>If someone has this hash value, they can write to your Google Cloud Storage. KEEP IS SAFE.</li>
+			</ol>
+			<button class="btn" ng-click="ctrl.infoHashKey=false">Close</button>
+		</div> 
+    </div>
+</div>
+
+
+
+<h5>
+  API Methods
+</h5>
+
+<tabs>
+
+<pane heading="Create">
+	<p>Create a new Prediction Model</p>
+	<div class="control-group">
+		<label class="control-label">Bucket name</label>
+		<div class="controls">
+			<input class="input input-large" type=text ng-model="params.bucketName" placeholder="bucket123">
+			<span ng-show="!params.bucketName" class="label label-important">Required</span>
+			<p class=muted>Your bucket must already be created through 
+				<a target="_blank" href="https://storage.cloud.google.com/">
+					Google Cloud Storage
+				</a>
+			</p>
+		</div> 
+    </div>
+	<div class="control-group">
+		<label class="control-label">File name</label>
+		<div class="controls">
+			<input class="input input-large" type=text ng-model="params.fileName" placeholder="filename.txt">
+			<span ng-show="!params.fileName" class="label label-important">Required</span>
+			<p class=muted>
+				You can make this up as it will create a file with the name you specify. Make sure it ends in .txt and does not already exist
+			</p>
+		</div> 
+    </div>	
+	<div class="control-group">
+		<label class="control-label">File content</label>
+		<div class="controls">
+			<textarea ng-model="params.fileContent" placeholder=""></textarea>
+			<span ng-show="!params.fileContent" class="label label-important">Required</span>
+			<p class=muted>
+				Example line: "French", "Je ne sais pas" 
+			</p>
+		</div> 
+    </div>	
+	
+	<div ng-show="ctrl.emptyParams()" class="alert">
+		<strong>Hint:</strong> Fill out all mandatory fields to execute API calls
+	</div>
+	<div ng-hide="ctrl.emptyParams()">
+		<p>API Call</p>
+		<pre id="urlCreate">https://{{params.appName}}.appspot.com/api2/create?hashKey={{params.hashKey}}&bucketName={{params.bucketName}}&fileName={{params.fileName}}&fileContent={{params.fileContent | urlencode}}</pre>
+		<button class="btn btn-warning" ng-click="apiCreate()">
+			<span ng-hide="create.loading">Execute API Call</span>
+			<i ng-show="create.loading" class="icon-spin icon-spinner"></i>
+		
+		</button>
+		
+		<div ng-show="create.available">
+			<br>
+			<p>Result</p>
+			<table class=table>
+				<thead>
+					<tr>
+						<th>Attribut</th>
+						<th>Value</th>
+					</tr>			
+				</thead>
+				<tbody>
+					<tr class="error" ng-show="create.result.error">
+						<td>Error</td>
+						<td>{{create.result.error}}</td>
+					</tr>
+					<tr class="success" ng-show="create.result.modelKey">
+						<td>modelKey</td>
+						<td>
+							{{create.result.modelKey}}<br>
+							<span class=muted>Use this key to ask for status, update the data model and for predictions</span>
+							<button ng-click="status.params.modelKey=create.result.modelKey" class="btn btn-small">Takeover key for other methods</button>
+						</td>
+					</tr>		
+					<tr ng-show="create.result.feedback.kind">
+						<td>kind</td>
+						<td>{{create.result.feedback.kind}}</td>
+					</tr>					
+					<tr ng-show="create.result.feedback.id">
+						<td>id</td>
+						<td>{{create.result.feedback.id}}</td>
+					</tr>		
+					<tr ng-show="create.result.feedback.selfLink">
+						<td>selfLink</td>
+						<td>{{create.result.feedback.selfLink}}</td>
+					</tr>		
+					<tr ng-show="create.result.feedback.storageDataLocation">
+						<td>storageDataLocation</td>
+						<td>{{create.result.feedback.storageDataLocation}}</td>
+					</tr>							
+					<tr ng-show="create.result.response">
+						<td>Response JSON</td>
+						<td><pre>{{create.result.response}}</pre></td>
+					</tr>
+					<tr ng-show="create.result.json">
+						<td>Plain JSON response</td>
+						<td><pre>{{create.result.json}}</pre></td>
+					</tr>					
+					<tr>
+						<td></td>
+						<td></td>
+					</tr>				
+				</tbody>
+			</table>
+		</div>
+	</div>
+</pane>
+
+
+<pane heading="Update">
+	<p>Add new learning data to existing model</p>
+</pane>
+
+<pane heading="Predict">
+	<p>Run prediction against existing model</p>
+</pane>
+
+</tabs>
+
+
+
+</form>
