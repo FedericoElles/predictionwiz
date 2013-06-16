@@ -56,7 +56,7 @@
 	<div ng-show="ctrl.emptyParams()" class="alert">
 		<strong>Hint:</strong> Fill out all mandatory fields to execute API calls
 	</div>
-	<div ng-hide="ctrl.emptyParams()">
+	<div ng-hide="ctrl.emptyParamsSet()">
 		<p>API Call</p>
 		<pre id="urlSet">https://{{params.appName}}.appspot.com/dict/{{params.dictName  | urlencode }}/set?key={{params.setKey  | urlencode }}&value={{params.value | urlencode}}</pre>
 		<button class="btn btn-warning" ng-click="apiSet()">
@@ -91,7 +91,7 @@
 	<div ng-show="ctrl.emptyParams()" class="alert">
 		<strong>Hint:</strong> Fill out all mandatory fields to execute API calls
 	</div>
-	<div ng-hide="ctrl.emptyParams()">
+	<div ng-hide="ctrl.emptyParamsGet()">
 		<p>API Call</p>
 		<pre id="urlGet">https://{{params.appName}}.appspot.com/dict/{{params.dictName | urlencode}}/get?key={{params.getKey | urlencode}}</pre>
 		<button class="btn btn-warning" ng-click="apiGet()">
@@ -113,11 +113,47 @@
 
 
 <pane heading="Delete">
-		<p>Deletes an key-value pair</p>
+	<p>Deletes an key-value pair</p>
 </pane>
 
 <pane heading="Empty">
-		<p>Deletes a whole dictionary</p>
+	<p>Deletes a whole dictionary</p>
+</pane>
+
+<pane heading="Mass Set">
+	<p>Uploads a Prediction API learning file</p>
+		
+	<div class="control-group">
+		<label class="control-label">Learning file content</label>
+		<div class="controls">
+			<textarea ng-model="params.massValue" placeholder="Paste learning file content here">
+			</textarea>
+			<span ng-show="!params.massValue" class="label label-important">Required</span>	
+			<br>
+			Lines: {{getLines(params.massValue)}}
+		</div> 
+    </div>	
+
+	<div ng-hide="ctrl.emptyParamsMassSet()">
+		<button class="btn btn-warning" ng-click="apiMassSet()">
+			<span ng-hide="massSet.queue.length>0">Start Mass Set</span>
+			<i ng-show="massSet.queue.length>0" class="icon-spin icon-spinner"></i>
+		</button>
+		
+		<span class="muted">Expected run time: {{(getLines(params.massValue)/2)}} seconds</span>
+		<br>
+		
+		<div ng-show="massSet.queue.length>0 || massSet.success>0">
+			<br>
+			<p>Result</p>
+			<p class="alert alert-warning" ng-show="massSet.queue.length>0">Loading ongoing - do not close window</p>
+
+			<p>Records left to load: {{massSet.queue.length}}</p>
+			<p>Sucessfully loaded records: {{massSet.success}}</p>
+		</div>
+		
+	</div>
+	
 </pane>
 
 

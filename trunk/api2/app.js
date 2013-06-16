@@ -28,7 +28,7 @@ app.filter('nonewline', function () {
         };
     });
 	
-function DictCtrl($scope, $location, $http) {
+function DictCtrl($scope, $location, $http, $timeout) {
 	$scope.ctrl={}
 	$scope.params = {} 
 	$scope.params.appName = ''
@@ -36,9 +36,11 @@ function DictCtrl($scope, $location, $http) {
 	$scope.params.setKey= ''
 	$scope.params.getKey= ''
 	$scope.params.value= ''
+	$scope.params.massValue= ''
 	
 	$scope.set = {"available":false}
 	$scope.get = {"available":false}
+	$scope.massSet = {"available":false,"queue":[],"success":0}
 
 	
 	var LSKEY =  "predictionwizv2api-"
@@ -50,15 +52,31 @@ function DictCtrl($scope, $location, $http) {
 		localStorage.setItem(LSKEY+'dictparams',JSON.stringify(newval))
 	},true)
 
-	$scope.ctrl.emptyParams = function(){
+	$scope.ctrl.emptyParamsSet = function(){
 		var r = false
 		if ($scope.params.appName == '') r = true
 		if ($scope.params.dictName == '') r = true
 		if ($scope.params.setKey == '') r = true
-		if ($scope.params.getKey == '') r = true
 		if ($scope.params.value == '') r = true
 		return r
 	}
+	
+	$scope.ctrl.emptyParamsGet = function(){
+		var r = false
+		if ($scope.params.appName == '') r = true
+		if ($scope.params.dictName == '') r = true
+		if ($scope.params.getKey == '') r = true
+		return r
+	}	
+	
+	$scope.ctrl.emptyParamsMassSet = function(){
+		var r = false
+		if ($scope.params.appName == '') r = true
+		if ($scope.params.dictName == '') r = true
+		if ($scope.params.massValue == '') r = true
+
+		return r
+	}		
 
 	$scope.apiSet = function(){
 		var url = fixURL($('#urlSet').html(),$scope.params.appName)
@@ -105,7 +123,71 @@ function DictCtrl($scope, $location, $http) {
 		)
 	 
 	 }	
+
+
+	//mass set
 	
+	$scope.getLines=function(txt){
+        if (typeof txt != "undefined"){
+			return txt.split('\n').length
+		} else {
+			return 0
+		}
+	}
+	
+	$scope.apiMassSet=function(){
+		//reset variables
+		$scope.massSet.success=0
+		$scope.massSet.queue=[]
+		//load records to queue
+		var txt = $scope.params.massValue
+		if (txt !== ""){
+			var a = txt.split('\n')
+			for (var i=0,ii=a.length;i<ii;i+=1){
+				var rec = a[i]
+				var aRec = rec.split(',') //TODO this will not work for "a,a","result"
+				if (aRec.length>1){
+					var key = aRec.shift()
+					var value = aRec.join(',')
+				}
+				console.log('apiMassSet.record',key,value)
+				$scope.massSet.queue.push({"key":key,"value":value})
+			}
+			startQueue()
+		}
+	}
+
+
+	var startQueue = function(){
+		if ($scope.massSet.queue.length>0){
+			$timeout(processQueue,500) 
+		}
+	}
+	
+	var processQueue = function(){
+		if ($scope.massSet.queue.length>0){
+			var rec = $scope.massSet.queue.shift()
+			console.log('processQueue.record',rec.key,rec.value)
+			var url = fixURL('https://'+$scope.params.appName+'.appspot.com/'+
+			  'dict/'+encodeURIComponent($scope.params.dictName)+
+			  '/set?key='+encodeURIComponent(rec.key)+
+			  '&value='+encodeURIComponent(rec.value),$scope.params.appName)
+			
+			$http.get(url).then(
+				function(response) {
+					console.log('processQueue.success',response)
+					$scope.massSet.success += 1
+				},
+				function(response){
+					console.log('processQueue.failed',response)
+				}
+			)
+			startQueue()
+		}
+	}
+	 
+
+	 
 }	
   
 function MainCtrl($scope, $location, $http) {
