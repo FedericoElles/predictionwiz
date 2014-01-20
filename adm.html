@@ -21,14 +21,14 @@
 <body>
 <div class="div_menu_adm">
 <a href="/">Back</a>
-| <a target="_blank" href="https://code.google.com/apis/console/">API Console</a>
+| <a target="_blank" href="https://cloud.google.com/console/project/{{project}}">Google Cloud Console</a>
 | <a href="/adm/exit">Sign out</a>
 </div>
 
 
 <h1 title="Home">
 <img src="/stylesheets/logo.png">
-Prediction Wizard Admin v1.5
+Prediction Wizard Admin v1.6
 </h1>
 
 <div id="tabs">
@@ -63,9 +63,9 @@ Prediction Wizard Admin v1.5
 	  <td>{{ record.caption }}</td>
 	  <td><span id="span_{{ record.key }}">{{ record.utility }}<br><a class="a_utility" tid="{{ record.key }}" href="#">edit</a></span> <textarea class="ta_utility" id="ta_{{ record.key }}">{{ record.utility }}</textarea></td>
 	  <td>
-	    <button id="btn_train_{{ record.key }}" onClick="action('{{ record.key }}','train','{{ record.datafile }}')">Train</button>
+	    <button id="btn_train_{{ record.key }}" onClick="action('{{ record.key }}','train','{{ record.datafile }}','{{ record.project }}')">Train</button>
 		<span title="Since start of training." id="span_train_{{ record.key }}"></span>
-	    <button id="btn_trainstatus_{{ record.key }}" onClick="action('{{ record.key }}','trainstatus','{{ record.datafile }}')">Status</button>
+	    <button id="btn_trainstatus_{{ record.key }}" onClick="action('{{ record.key }}','trainstatus','{{ record.datafile }}','{{ record.project }}')">Status</button>
 	  </td>
 	  <td id="result_{{ record.key }}"></td>	  
 	  <td>	  
@@ -103,6 +103,16 @@ Prediction Wizard Admin v1.5
     <td>Caption</td>
 	<td><input name="caption" /></td>
   </tr>  
+  <tr>
+    <td><b>Project</b></td>
+	<td><input name="project" />
+	<p >New mandatory field. 
+		Go to <a href="https://cloud.google.com/console">Cloud Console</a>, 
+		select the project where Prediction API is enabled, copy the Project Number displayed on top, e.g. "1712387192873".
+		If this field is not provided, the default value is taken over from config.py: {{ project }}
+	</p>
+	</td>
+  </tr>    
   <tr>
     <td>Public</td>
 	<td><input type="checkbox" name="public" /> Share model with the world</td>
@@ -244,14 +254,14 @@ function StartTheTimer(key)
 // Train or Status click
 //
 var data_debug = {};
-function action(key, urlsuffix, datafile){
+function action(key, urlsuffix, datafile, project){
   $('#result_'+key).html("Working...");
   $('#btn_'+urlsuffix+'_'+key).attr('disabled','disabled');
   var utility = $('#ta_'+key).val();
   $.ajax({url: '/adm/api/'+urlsuffix,
     dataType: $('#datatype').val(),
 	type: 'POST',
-    data: {datafile: datafile, key:key, utility : utility},
+    data: {datafile: datafile, key:key, utility : utility, project: project},
 	success: function(data) {
 	  data_debug = data;
       if ($('#datatype').val() == 'json'){

@@ -63,12 +63,14 @@ class DataModel(db.Model):
   date = db.DateTimeProperty(auto_now_add=True)
   public = db.BooleanProperty(default=False)
   utility = db.TextProperty()
+  project = db.StringProperty()
 
-  def save(self,bucket,datafile,caption,public,olduserhash):
+  def save(self,bucket,datafile,caption,public,olduserhash,project):
     model = DataModel()
     model.datafile = bucket + '/' + datafile
     model.caption = caption
     model.public = public
+    model.project = project
     if (olduserhash):
       model.userhash = olduserhash
     else:
