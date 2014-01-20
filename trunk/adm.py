@@ -24,7 +24,7 @@ results.
 
 from __future__ import with_statement
 
-__author__ = 'Robert Kaplow, Federico Elles'
+__author__ = 'Robert Kaplow, Federico Elles, Rajiv Kilaparti'
 
 from google.appengine.api import files
 
@@ -117,6 +117,10 @@ class AdmNewModel(webapp2.RequestHandler):
       bucket = cgi.escape(self.request.get('bucket','')).strip()  
       caption = cgi.escape(self.request.get('caption','')).strip()
       public = cgi.escape(self.request.get('public','')).strip()
+      project = cgi.escape(self.request.get('project','')).strip()
+
+      if project == '':
+        project = getConfig('project')
 
       if caption == '':
         caption = datafile
@@ -127,7 +131,7 @@ class AdmNewModel(webapp2.RequestHandler):
 
       
       if datafile != '' and caption != '' and bucket != '':
-        newmodelkey = DataModel().save(bucket,datafile,caption,public,False)
+        newmodelkey = DataModel().save(bucket,datafile,caption,public,False,project)
       self.redirect("/adm/")
     else:
       self.redirect(users.create_login_url(self.request.uri))    
@@ -158,8 +162,9 @@ class AdmTrain(webapp2.RequestHandler):
       datafile = cgi.escape(self.request.get('datafile'))
       utility = cgi.escape(self.request.get('utility'))
       key = cgi.escape(self.request.get('key',''))
+      project = cgi.escape(self.request.get('project'))
 
-      html, utilityOutput = Training(user.user_id(),'insert',datafile,utility)
+      html, utilityOutput = Training(user.user_id(),'insert',datafile,utility,project)
      
       #save utility
       if utilityOutput: #False on error
@@ -178,7 +183,8 @@ class AdmTrainStatus(webapp2.RequestHandler):
     user = users.get_current_user()
     if user:      
       datafile = cgi.escape(self.request.get('datafile'))
-      html, utilityOutput = Training(user.user_id(),'get',datafile,'')
+      project = cgi.escape(self.request.get('project'))
+      html, utilityOutput = Training(user.user_id(),'get',datafile,'',project)
       html = json.dumps(html)
       self.response.out.write (html)
 
@@ -193,7 +199,45 @@ class AdmList(webapp2.RequestHandler):
     user = users.get_current_user()
     if user:          
       modelList = ModelList(user.user_id())
-      html = json.dumps(modelList)
+      
+      #html = json.dumps(modelList)
+      if 'items' in modelList:
+        #html = str(len(modelList['items']))
+        DMs = DataModel().getmy().run(batch_size=1000)
+        myList = []
+        myListMap = {}
+        for dm in DMs:
+          myList.append(dm)
+          myListMap[dm.datafile] = True
+
+        #check what available
+        notavailable = 0
+        for model in modelList['items']:
+          try:
+            temp = myListMap[model['id']]
+            #model available
+          except:
+            #model not available
+            ###self.response.out.write(model['id'])
+            aData = model['id'].split('/')
+            if len(aData) == 2:
+              newmodelkey = DataModel().save(aData[0],aData[1],aData[1],False)
+            ###self.response.out.write(newmodelkey + '<br>')          
+            notavailable += 1
+        #html2 = str(len(myList))
+        ###self.response.out.write (html + '-' + html2 + ':' + str(notavailable))
+        self.redirect("/adm/")
+      else:
+        self.response.out.write('no models found to be migrated');    
+
+      
+  def get(self):
+    self.post()
+
+
+class AdmList2(webapp2.RequestHandler):
+  def post(self):
+    
       html = str(len(modelList['items']))
       DMs = DataModel().getmy().run(batch_size=1000)
       myList = []
@@ -219,8 +263,6 @@ class AdmList(webapp2.RequestHandler):
       html2 = str(len(myList))
       ###self.response.out.write (html + '-' + html2 + ':' + str(notavailable))
       self.redirect("/adm/")
-  def get(self):
-    self.post()
 
 
 # ----------
@@ -232,8 +274,9 @@ class MainPage(webapp2.RequestHandler):
   def get(self):
     user = users.get_current_user()
     if user:      
-      if (onlyAdmins() and users.is_current_user_admin()) or not onlyAdmins(): 
-
+      if (onlyAdmins() and users.is_current_user_admin()) or not onlyAdmins():
+        #TODO: Rewrite authentification
+        #https://developers.google.com/prediction/docs/developer-guide#upgradingyourmodel
       
         credentials = StorageByKeyName(
             Credentials, user.user_id(), 'credentials').get()
@@ -242,8 +285,10 @@ class MainPage(webapp2.RequestHandler):
           flow = OAuth2WebServerFlow(
               client_id = getConfig('client_id'), 
               client_secret = getConfig('client_secret'),
-              scope='https://www.googleapis.com/auth/prediction',
-              user_agent='predictionwiz/1.5',
+              # TODO: Missing scope?: 'https://www.googleapis.com/auth/devstorage.full_control','https://www.googleapis.com/auth/prediction'
+              #scope='https://www.googleapis.com/auth/prediction',
+              scope='https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/prediction',
+              user_agent='predictionwiz/1.6',
               domain='anonymous',
               xoauth_displayname='Prediction Wizard')
 
@@ -252,7 +297,7 @@ class MainPage(webapp2.RequestHandler):
           memcache.set(user.user_id(), pickle.dumps(flow))
           self.redirect(authorize_url)
         else:
-          template_values = {'records':DataModel().getmy()}
+          template_values = {'records':DataModel().getmy(),'project':getConfig('project')}
           writeTemplate(self, 'adm.html', template_values)
       else:
           self.redirect(users.create_logout_url("/"))
@@ -312,26 +357,38 @@ class oAuthCheck2(webapp2.RequestHandler):
       self.redirect(users.create_login_url(self.request.uri))  
 
 
-
+#
+# Print refresh_token
+#
+class oAuthTest1(webapp2.RequestHandler):
+  def get(self):
+    user = users.get_current_user()  
+    storage = Storage(CredentialsModel, 'id', user, 'credential')
+    credential = storage.get()
+    http = httplib2.Http()
+    body = {'refresh_token':credential.refresh_token}
+    #TODO print body
+    self.response.out.write(json.dumps(body))
 
 
 
 #
 # Ask for training status
-# New API DOC: http://api-python-client-doc.appspot.com/prediction/v1.5/trainedmodels
+# New API DOC: http://api-python-client-doc.appspot.com/prediction/v1.6/trainedmodels
 #
-def Training(userid, action, model, utility):
+def Training(userid, action, model, utility, project):
   try:
     utilityOutput = ''
-
+    if not project or project == '' or project == 'None':
+      project = getConfig('project')
     credentials = StorageByKeyName(
       Credentials, userid, 'credentials').get()
     http = httplib2.Http()
     http = credentials.authorize(http)
-    service = build("prediction", "v1.5", http=http)
+    service = build("prediction", "v1.6", http=http)
     train = service.trainedmodels()
     if (action == 'get'):
-      start = train.get(id=model).execute()
+      start = train.get(id=model,project=project).execute()
     if (action == 'insert'):
       #utility = 'French:5\nEnglish:10'
       oUtility = []
@@ -356,7 +413,7 @@ def Training(userid, action, model, utility):
             
         
       body = {'storageDataLocation' : model, 'id' : model, 'utility':  oUtility}
-      start = train.insert(body=body).execute()
+      start = train.insert(body=body, project=project).execute()
     return start, utilityOutput
   except AccessTokenRefreshError:
     return {"error":{"message":"The credentials have been revoked or expired, please re-run the application to re-authorize"}}, False
@@ -368,15 +425,17 @@ def Training(userid, action, model, utility):
 #
 # Predict something
 #
-def Predict(userid, model, query):
+def Predict(userid, model, query, project):
+  if not project or project == '' or project == 'None':
+    project = getConfig('project')
   credentials = StorageByKeyName(
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.5", http=http)
+  service = build("prediction", "v1.6", http=http)
   train = service.trainedmodels()
   body = {'input': {'csvInstance': query.split(',')}}
-  prediction = train.predict(body=body, id=model).execute()
+  prediction = train.predict(body=body, id=model, project=project).execute()
 
   return prediction
 
@@ -391,10 +450,10 @@ def Learn(userid, model, query, answer):
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.5", http=http)
+  service = build("prediction", "v1.6", http=http)
   train = service.trainedmodels()
-  body = {'label': answer ,'csvInstance': query.split(',')}
-  model = train.update(body=body, id=model).execute()
+  body = {'output': answer ,'csvInstance': query.split(',')}
+  model = train.update(body=body, id=model,project=getConfig('project')).execute()
 
   return model
 
@@ -406,10 +465,10 @@ def Delete(userid, model):
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.5", http=http)
+  service = build("prediction", "v1.6", http=http)
   train = service.trainedmodels()
   #body = {'id' : model}
-  train.delete( id= model).execute()
+  train.delete( id=model,project=getConfig('project')).execute()
 
   return True
 
@@ -422,10 +481,10 @@ def ModelList(userid):
     Credentials, userid, 'credentials').get()
   http = httplib2.Http()
   http = credentials.authorize(http)
-  service = build("prediction", "v1.5", http=http)
+  service = build("prediction", "v1.6", http=http)
   train = service.trainedmodels()
   
-  mList = train.list().execute()
+  mList = train.list(project=getConfig('project')).execute()
 
   return mList
 

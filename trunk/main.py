@@ -119,9 +119,11 @@ class Prediction(webapp2.RequestHandler):
 
     datafile = False
     mydatamodel = DataModel().get(model)
+    project = ''
     if mydatamodel:
       if mydatamodel.public or mydatamodel.userhash == getUserHash():
         datafile = mydatamodel.datafile
+        project = mydatamodel.project
     
     addreturn = self.request.get('addreturn','')
     addjson = self.request.get('addjson','')
@@ -136,10 +138,10 @@ class Prediction(webapp2.RequestHandler):
         if cache is not None:
           data = cache
         else:
-          data = Predict(userid, datafile, post) 
+          data = Predict(userid, datafile, post, project) 
           memcache.add(memkey, data, caching*60)
       else:
-        data = Predict(userid, datafile, post) 
+        data = Predict(userid, datafile, post, project) 
            
      
       if addreturn:
@@ -195,13 +197,15 @@ class Prediction(webapp2.RequestHandler):
         userid, apikey = ApiKey().getbymodel(model)
 
       datafile = False
+      project = ''
       mydatamodel = DataModel().get(model)
       if mydatamodel:
         #if mydatamodel.public or mydatamodel.userhash == getUserHash(): #not required since you don't want to make a model public to access it.
         datafile = mydatamodel.datafile
+        project = mydatamodel.project
 
       if datafile and userid and post:
-        data = Predict(userid, datafile, post)          
+        data = Predict(userid, datafile, post, project)          
 
         if 'outputLabel' in data:
           result = data['outputLabel']

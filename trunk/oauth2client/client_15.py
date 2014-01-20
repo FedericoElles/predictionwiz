@@ -17,7 +17,7 @@
 Tools for interacting with OAuth 2.0 protected resources.
 """
 
-__author__ = 'jcgregorio@google.com (Joe Gregorio), kilapartirajiv@gmail.com (Rajiv Kilaparti)'
+__author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
 import base64
 import clientsecrets
@@ -428,7 +428,6 @@ class OAuth2Credentials(Credentials):
     self.token_expiry = token_expiry
     self.token_uri = token_uri
     self.user_agent = user_agent
-    '''self.scope = scope'''
     self.revoke_uri = revoke_uri
     self.id_token = id_token
     self.token_response = token_response
@@ -708,8 +707,6 @@ class OAuth2Credentials(Credentials):
             self.store.locked_put(self)
       except StandardError:
         pass
-      # kilapartirajiv: added revoke request, to invalidate the token in case the refresh fails
-      self._revoke(http_request)
       raise AccessTokenRefreshError(error_msg)
 
   def _revoke(self, http_request):
@@ -1297,7 +1294,6 @@ class OAuth2WebServerFlow(Flow):
         d['id_token'] = _extract_id_token(d['id_token'])
 
       logger.info('Successfully retrieved access token')
-      logger.info('Scope from access token is ..................... : %s' % self.scope)
       return OAuth2Credentials(access_token, self.client_id,
                                self.client_secret, refresh_token, token_expiry,
                                self.token_uri, self.user_agent,
