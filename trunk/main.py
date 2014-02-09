@@ -21,6 +21,7 @@ results.
 
 __author__ = 'Robert Kaplow'
 
+
 import cgi
 import os
 import random
@@ -172,6 +173,8 @@ class Prediction(webapp2.RequestHandler):
     post = cgi.escape(self.request.get('content'))
     downcase = cgi.escape(self.request.get('downcase','n'))
     caching = cgi.escape(self.request.get('caching','0'))
+    useformat = cgi.escape(self.request.get('format','default'))
+    
     try:
       caching = int(caching)
     except:
@@ -207,13 +210,23 @@ class Prediction(webapp2.RequestHandler):
       if datafile and userid and post:
         data = Predict(userid, datafile, post, project)          
 
-        if 'outputLabel' in data:
-          result = data['outputLabel']
-        elif 'outputValue' in data:
-          result = data['outputValue']
-        else:
+        if useformat == 'default':
+          if 'outputLabel' in data:
+            result = data['outputLabel']
+          elif 'outputValue' in data:
+            result = data['outputValue']
+          else:
+            result = json.dumps(data)
+        elif useformat == 'json':
           result = json.dumps(data)
-       
+        elif useformat == 'comma':
+          if data['outputMulti']:
+            result = ''
+            for element in data['outputMulti']:
+              result = result + element['label'] + ',' + element['score'] + ','
+            result = result + data['outputLabel'] + ','  + data['id']
+            #result = result[:-1]
+          
       else:
         result = 'ERROR: model or content missing'
 

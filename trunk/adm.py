@@ -221,7 +221,7 @@ class AdmList(webapp2.RequestHandler):
             ###self.response.out.write(model['id'])
             aData = model['id'].split('/')
             if len(aData) == 2:
-              newmodelkey = DataModel().save(aData[0],aData[1],aData[1],False)
+              newmodelkey = DataModel().save(aData[0],aData[1],aData[1],False,False, getConfig('project'))
             ###self.response.out.write(newmodelkey + '<br>')          
             notavailable += 1
         #html2 = str(len(myList))
