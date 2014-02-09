@@ -449,6 +449,11 @@ Prediction Wizard v1.6
 <td>Minutes: <input  type="number" id=inp_caching_mass value=0 /> 0 = No caching</td>
 </tr>
 <tr>
+<td style="width:120px;">Delay:</td>
+<td>Seconds: <input  type="number" id=inp_delay_mass value="0.3" /> 0 = No delay</td>
+</tr>
+
+<tr>
 <td style="width:120px;">Auto LowerCase:</td>
 <td><input id="inp_downcase_mass" type="checkbox"><label for="inp_downcase_mass">Input test will be lowercase</label></td>
 </tr>
@@ -1245,7 +1250,7 @@ holder.ondrop = function (e) {
 //
 var gmasspredictcounter = 0;
 var gmasspredictcounter_init = 0;
-
+var delay = 0;
 var ga_mass;
 var code;
 $('#btn_mass_predict').click(function() {
@@ -1254,6 +1259,11 @@ $('#btn_mass_predict').click(function() {
 	$('#div_mass_export_block').hide();
 	$('#ta_mass_output').val(''); //empty output
 	caching = $('#inp_caching_mass').val()
+	delay = $('#inp_delay_mass').val()
+	delay = parseFloat(delay)
+	if (isNaN(delay)) delay = 0.5;
+	console.log('delay:',delay);
+	
 	downcase = $('#inp_downcase_mass').attr('checked')
 	ga_mass = {};
 	
@@ -1272,7 +1282,7 @@ $('#btn_mass_predict').click(function() {
 		rowvalue = asRow[i].replace(/'/g,"\\'")
 		if (downcase) rowvalue = rowvalue.toLowerCase()
 		code = "predictMassRecord('"+model+"','"+rowvalue+"',"+i+","+caching+");";
-		setTimeout(code,400*i);
+		setTimeout(code,delay*1000*i);
 		j++;
 	}
 	
@@ -1352,7 +1362,8 @@ function predictMassRecord(model, testdata, i, caching){
 		
 		
 	  } else {
-		 $('#ta_mass_output').val(txt+asReturn+'\n');
+		 $('#ta_mass_output').val('ERROR: Can not understand feedback\n');
+		 console.log('Mass Prediction ERROR:',txt,asReturn)
 	  }			
 	  if (gmasspredictcounter_init == gmasspredictcounter){
 		$('#div_mass_export_block').show();
@@ -1361,7 +1372,7 @@ function predictMassRecord(model, testdata, i, caching){
 	error: function(XMLHttpRequest, textStatus, errorThrown) {
 	  txt = $('#ta_mass_output').val();
   	  gmasspredictcounter++;
-	  $('#ta_mass_output').val(txt+'\n'+textStatus);
+	  $('#ta_mass_output').val(txt+'ERROR:'+textStatus+'\n');
 	}	
   });
 }
